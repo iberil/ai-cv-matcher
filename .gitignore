@@ -31,7 +31,9 @@ frontend/resume-matcher/out/
 .env.*.local
 backend/.env
 backend/.env.local
+backend/.env.production
 frontend/resume-matcher/.env.local
+frontend/resume-matcher/.env.production
 
 # ===== DATABASES =====
 *.db

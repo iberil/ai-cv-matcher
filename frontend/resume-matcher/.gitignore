@@ -23,6 +23,7 @@
 !.env.example
 .env.local
 .env.*.local
+.env.production
 
 # ===== OS SPECIFIC =====
 .DS_Store
