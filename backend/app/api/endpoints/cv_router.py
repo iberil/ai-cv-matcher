@@ -62,6 +62,8 @@ async def confirm_and_save_cv(
         print(f"DEBUG: Resume data keys: {list(resume_data.dict().keys())}")
         
         saved_resume = save_resume_to_db(db, current_user.id, resume_data, file_path=resume_data.file_path)
+        saved_resume.title = resume_data.title or f"{resume_data.full_name}'s CV"
+        db.commit()
         
         print(f"DEBUG: CV saved successfully with ID: {saved_resume.id}")
         

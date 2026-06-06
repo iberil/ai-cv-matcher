@@ -19,6 +19,7 @@ class ResumeExtractResponse(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    title: Optional[str] = None
     summary: Optional[str] = None
     skills: List[str] = []
     languages: List[str] = []

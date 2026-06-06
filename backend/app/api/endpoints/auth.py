@@ -14,7 +14,7 @@ from ...core import security, config
 from ...core.database import get_db
 from ...schemas import Token, TokenData, UserCreate, UserRead
 from ...services import user_service
-from ... import models
+
 router = APIRouter()
 
 @router.post("/register", response_model=UserRead)
