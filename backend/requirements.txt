@@ -1,5 +1,6 @@
 fastapi==0.104.1
 uvicorn==0.24.0
+gunicorn==21.2.0
 waitress==2.1.2
 pydantic==2.4.2
 pydantic-settings==2.0.3
@@ -19,7 +20,6 @@ numpy>=1.26.4
 scipy>=1.11.4
 nltk==3.8.1
 sentence-transformers>=2.2.2
-torch==2.1.0
 transformers==4.40.2
 huggingface-hub==0.22.2
 slowapi==0.1.9
