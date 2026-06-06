@@ -27,17 +27,18 @@ app = FastAPI(
 # Global exception handler
 app.add_exception_handler(Exception, global_exception_handler)
 
-# CORS ayarları
+# CORS ayarları - Production
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://ai-cv-matcher.vercel.app",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
