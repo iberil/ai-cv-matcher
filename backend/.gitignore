@@ -1,0 +1,89 @@
+# ===== VIRTUAL ENVIRONMENTS =====
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# ===== DEPENDENCIES =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ===== ENVIRONMENT FILES =====
+.env
+.env.local
+.env.*.local
+
+# ===== DATABASES =====
+*.db
+*.sqlite
+*.sqlite3
+cv_matcher.db
+
+# ===== PYTHON CACHE & TESTING =====
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.cache
+*.pyc
+*.pyo
+
+# ===== TEMPORARY & UPLOAD FILES =====
+temp_uploads/
+uploads/
+*.tmp
+*.bak
+
+# ===== IDE & EDITORS =====
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.vim/
+
+# ===== OS SPECIFIC =====
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===== LOGS =====
+*.log
+logs/
+*.log.*
+app.log
+
+# ===== FASTAPI/FLASK SPECIFIC =====
+instance/
+.webassets-cache/
+
+# ===== MISC =====
+.cache/
+*.pem

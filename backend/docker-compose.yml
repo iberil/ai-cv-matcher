@@ -1,0 +1,67 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: cv_matcher_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cv_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cv_password}
+      POSTGRES_DB: ${POSTGRES_DB:-cv_matcher_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cv_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cv_matcher_network
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cv_matcher_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cv_user}:${POSTGRES_PASSWORD:-cv_password}@db:5432/${POSTGRES_DB:-cv_matcher_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-change-in-production}
+      HF_TOKEN: ${HF_TOKEN}
+      HF_MODEL: ${HF_MODEL:-Qwen/Qwen2.5-72B-Instruct}
+      HF_API_URL: ${HF_API_URL:-https://api-inference.huggingface.co/v1/chat/completions}
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cv_matcher_network
+
+  # Redis Cache (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: cv_matcher_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cv_matcher_network
+    profiles:
+      - optional
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  cv_matcher_network:
+    driver: bridge

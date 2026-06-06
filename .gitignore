@@ -1,0 +1,145 @@
+# ===== VIRTUAL ENVIRONMENTS =====
+venv/
+env/
+ENV/
+.env/
+.venv/
+backend/venv/
+backend/.venv/
+
+# ===== DEPENDENCIES =====
+node_modules/
+frontend/resume-matcher/node_modules/
+*.pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ===== BUILD OUTPUTS =====
+.next/
+out/
+dist/
+build/
+*.egg-info/
+*.whl
+.tox/
+frontend/resume-matcher/.next/
+frontend/resume-matcher/out/
+
+# ===== ENVIRONMENT FILES =====
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+frontend/resume-matcher/.env.local
+
+# ===== DATABASES =====
+*.db
+*.sqlite
+*.sqlite3
+cv_matcher.db
+backend/cv_matcher.db
+
+# ===== PYTHON CACHE =====
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===== TEMPORARY FILES =====
+temp_uploads/
+uploads/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# ===== IDE & EDITORS =====
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+*.swo
+*~
+.vim/
+
+# ===== OS SPECIFIC =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===== LOGS =====
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+backend/app.log
+
+# ===== NODE SPECIFIC =====
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+*.tar.gz
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ===== NEXT.JS SPECIFIC =====
+frontend/resume-matcher/npm-debug.log*
+frontend/resume-matcher/yarn-debug.log*
+frontend/resume-matcher/yarn-error.log*
+.vercel
+
+# ===== TYPESCRIPT =====
+*.tsbuildinfo
+next-env.d.ts
+
+# ===== VSCODE SPECIFIC =====
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ===== MAC SPECIFIC =====
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ===== DATA FILES =====
+data/data/**/*.pdf
+
+# ===== MISC =====
+.cache/
+*.pem
+dist/
+build/
