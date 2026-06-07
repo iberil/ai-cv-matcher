@@ -27,18 +27,18 @@ app = FastAPI(
 # Global exception handler
 app.add_exception_handler(Exception, global_exception_handler)
 
-# CORS ayarları - Production
+# CORS ayarları - Production (Dinamik ve Güvenli Versiyon)
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://ai-cv-matcher.vercel.app",
-    "https://ai-cv-matcher-*.vercel.app",
     "https://ai-cv-matcher-5sui.onrender.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://ai-cv-matcher-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
