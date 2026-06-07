@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import random
 from sqlalchemy.orm import Session
 
+# Backend app'ı import etmek için path'i ayarla
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import SessionLocal, engine
@@ -63,14 +65,14 @@ deneyim_seviyeleri = ["entry", "mid", "senior"]
 def seed_database():
     db: Session = SessionLocal()
     try:
-        print("--- VERİTABANI TOHUMLAMA BAŞLADI ---")
+        print("--- VERITABANI TOHUMLAMA BASLADI ---")
         
         # 1. Sistem işveren kullanıcısını kontrol et/oluştur
         system_employer = db.query(User).filter(User.email == "sistem@isveren.com").first()
         if not system_employer:
-            print("Sistem işveren kullanıcısı bulunamadı, oluşturuluyor...")
+            print("Sistem isveren kullanicisi bulunamadi, olusturuluyor...")
             system_employer = User(
-                full_name="Sistem İşe Alım Departmanı",
+                full_name="Sistem Ise Alim Departmani",
                 email="sistem@isveren.com",
                 hashed_password=get_password_hash("SistemSifresi123!"),
                 user_role="isveren",
@@ -79,14 +81,14 @@ def seed_database():
             db.add(system_employer)
             db.flush()
         
-        owner_id = system_employer.id
-        print(f"İlanlar şu kullanıcıya bağlanacak: ID {owner_id} ({system_employer.full_name})")
+        creator_id = system_employer.id
+        print(f"Ilanlar su kullaniciya baglanacak: ID {creator_id} ({system_employer.full_name})")
 
         # 2. Mevcut ilanları kontrol et (çifte tohumlama önleme)
-        existing_count = db.query(JobPosting).filter(JobPosting.owner_id == owner_id).count()
+        existing_count = db.query(JobPosting).filter(JobPosting.created_by == creator_id).count()
         if existing_count > 0:
-            print(f"⚠️  Zaten {existing_count} adet ilan mevcut. Toplu ekleme yapmıyorum.")
-            print("Devam etmek istiyorsanız var olan ilanları silin veya başka bir owner_id kullanın.")
+            print(f"UYARI: Zaten {existing_count} adet ilan mevcut. Toplu ekleme yapmiyorum.")
+            print("Devam etmek istiyorsaniz var olan ilanlar silin veya baska bir creator_id kullanin.")
             return
 
         # 3. 1000 adet ilan üret
@@ -101,13 +103,13 @@ def seed_database():
             konum = random.choice(konumlar)
             work_type = random.choice(calisma_turleri)
             if work_type == "remote":
-                konum = "Uzaktan - Türkiye"
+                konum = "Uzaktan - Turkiye"
 
             min_maas = random.randrange(35000, 85000, 2500)
             max_maas = min_maas + random.randrange(10000, 40000, 5000)
             
-            aciklama = f"{sektor_adi} alanında büyüyen ekibimize {pozisyon} olarak katkı sağlayacak, sorumluluk sahibi takım arkadaşları arıyoruz."
-            gereksinim = f"İlgili üniversite bölümlerinden mezun, sektörde tecrübesi olan ve dinamik çalışma ortamına uyum sağlayabilecek adaylar."
+            aciklama = f"{sektor_adi} alaninda buyuyen ekibimize {pozisyon} olarak katkis saglaycak, sorumluluk sahibi takim arkadaslari ariyoruz."
+            gereksinim = f"Ilgili universite bolumlerinden mezun, sektorde tecrubesi olan ve dinamik calisma ortamina uyum saglyabilecek adaylar."
             exp_level = random.choice(deneyim_seviyeleri)
 
             new_job = JobPosting(
@@ -123,24 +125,24 @@ def seed_database():
                 salary_max=float(max_maas),
                 sector=sektor_adi,
                 is_active=True,
-                owner_id=owner_id
+                created_by=creator_id
             )
             job_postings_to_add.append(new_job)
 
         # 4. Toplu ekleme
-        print(f"{len(job_postings_to_add)} adet ilan hazırlanıyor...")
+        print(f"{len(job_postings_to_add)} adet ilan hazirlaniyor...")
         db.bulk_save_objects(job_postings_to_add)
         db.commit()
-        print("✔ 1000 adet karışık iş ilanı başarıyla veritabanına yüklendi!")
+        print("[SUCCESS] 1000 adet karisik is ilani basariyila veritabanina yuklendi!")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Tohumlama sırasında bir hata oluştu: {e}")
+        print(f"[ERROR] Tohumlama sirasinda bir hata olustu: {e}")
         import traceback
         traceback.print_exc()
     finally:
         db.close()
-        print("--- İŞLEM BİTTİ ---")
+        print("--- ISLEM BITTI ---")
 
 if __name__ == "__main__":
     seed_database()
