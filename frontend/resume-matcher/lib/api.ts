@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+// IMPORTANT: Environment variable MUST be set in Vercel Dashboard
+// Set: NEXT_PUBLIC_API_URL=https://ai-cv-matcher-5sui.onrender.com/api/v1
+// in Settings → Environment Variables for all environments
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ai-cv-matcher-5sui.onrender.com/api/v1';
+
+if (typeof window !== 'undefined' && !process.env.NEXT_PUBLIC_API_URL) {
+  console.warn('⚠️ NEXT_PUBLIC_API_URL not set! Using fallback. Check Vercel Environment Variables.');
+}
 
 const RegisterUserSchema = z.object({
   fullName: z.string().min(2, "İsim en az 2 karakter olmalıdır."),
