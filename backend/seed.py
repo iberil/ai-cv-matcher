@@ -2,6 +2,7 @@
 import os
 import sys
 import random
+import re
 from sqlalchemy.orm import Session
 
 # Backend app'ı import etmek için path'i ayarla
@@ -64,7 +65,7 @@ job_market_data = [
         "sector": "Otomotiv ve Üretim",
         "companies": ["Ford Otosan", "Tofaş", "Otokar", "BMC", "Mercedes-Benz Türk", "Bosch", "Toyota Türkiye"],
         "roles": [
-            {"title": "Gömülü Sistemler Mühendisi (Embedded)", "skills": "C, C++, Microcontrollers, RTOS, ARM, CAN bus, MATLAB"},
+            {"title": "Gömülü Sistemler Mühendisi", "skills": "C, C++, Microcontrollers, RTOS, ARM, CAN bus, MATLAB"},
             {"title": "Makine Mühendisi", "skills": "SolidWorks, AutoCAD, ANSYS, Üretim Planlama, Termodinamik"},
             {"title": "Kalite Güvence Mühendisi", "skills": "ISO 9001, Six Sigma, Lean Manufacturing, FMEA, Kalite Kontrol"},
             {"title": "Otomasyon Mühendisi", "skills": "PLC, SCADA, Siemens, TIA Portal, Robotik, HMI"}
@@ -72,7 +73,7 @@ job_market_data = [
     },
     {
         "sector": "Telekomünikasyon",
-        "companies": ["Turkcell", "Vodafone", "Türk Telekom", "Netaş"],
+        "companies": ["Türk Telekom", "Netaş"],
         "roles": [
             {"title": "Network Mühendisi", "skills": "Cisco, CCNA, BGP, OSPF, TCP/IP, Firewall, Routing & Switching"},
             {"title": "Telekomünikasyon Uzmanı", "skills": "5G, LTE, Fiber Optik, RF Planlama, Transmisyon"},
@@ -85,6 +86,16 @@ konumlar = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Kocaeli", "Esk
 calisma_turleri = ["remote", "hybrid", "office"]
 deneyim_seviyeleri = ["entry", "mid", "senior"]
 
+def generate_company_email(company_name: str) -> str:
+    """Şirket isminden info@sirketadi.com şeklinde e-posta üretir."""
+    # Küçük harfe çevir ve boşlukları sil
+    c = company_name.lower().replace(" ", "").replace(".", "").replace("-", "")
+    # Türkçe karakterleri İngilizceye çevir
+    replacements = {"ı": "i", "ğ": "g", "ü": "u", "ş": "s", "ö": "o", "ç": "c"}
+    for tr, en in replacements.items():
+        c = c.replace(tr, en)
+    return f"info@{c}.com"
+
 def generate_description(sector, title, company):
     desc_templates = [
         f"{company} olarak, {sector} sektöründeki yenilikçi projelerimizde görev alacak deneyimli bir {title} arıyoruz.",
@@ -95,7 +106,6 @@ def generate_description(sector, title, company):
     return random.choice(desc_templates)
 
 def get_dynamic_requirements(exp_level):
-    """Deneyim seviyesine göre dinamik gereksinim metni oluşturur."""
     req_templates = {
         "entry": [
             "Üniversitelerin ilgili bölümlerinden yeni mezun veya en fazla 1-2 yıl deneyimli,",
@@ -121,36 +131,53 @@ def seed_database():
     try:
         print("--- VERİTABANI TOHUMLAMA BAŞLADI ---")
         
-        system_employer = db.query(User).filter(User.email == "sistem@isveren.com").first()
-        if not system_employer:
-            print("Sistem işveren kullanıcısı oluşturuluyor...")
-            system_employer = User(
-                full_name="Sistem İşe Alım Departmanı",
-                email="sistem@isveren.com",
-                hashed_password=get_password_hash("SistemSifresi123!"),
-                user_role="isveren",
-                is_active=True
-            )
-            db.add(system_employer)
-            db.flush()
+        # 1. ESKİ SAHTE İLANLARI VE ŞİRKETLERİ TEMİZLE
+        print("Eski tohumlanmış ilanlar ve şirketler temizleniyor...")
         
-        creator_id = system_employer.id
-
-        # ESKİ İLANLARI TEMİZLE
-        existing_jobs = db.query(JobPosting).filter(JobPosting.created_by == creator_id)
-        existing_count = existing_jobs.count()
-        if existing_count > 0:
-            print(f"Mevcut {existing_count} ilan ve ilişkili eşleşmeler siliniyor...")
-            job_ids = [job.id for job in existing_jobs.all()]
+        # Sadece bu script tarafından oluşturulmuş "info@..." mailine sahip kullanıcıları bul
+        # Böylece senin manuel eklediğin gerçek hesaplara zarar gelmez.
+        seeded_users = db.query(User).filter(User.email.like("info@%.com")).all()
+        seeded_user_ids = [u.id for u in seeded_users]
+        
+        if seeded_user_ids:
+            # Önce bu şirketlere ait eşleşmeleri sil
+            jobs_to_delete = db.query(JobPosting).filter(JobPosting.created_by.in_(seeded_user_ids)).all()
+            job_ids = [j.id for j in jobs_to_delete]
             if job_ids:
                 db.query(CVJobMatch).filter(CVJobMatch.job_posting_id.in_(job_ids)).delete(synchronize_session=False)
-            existing_jobs.delete(synchronize_session=False)
+                # Sonra ilanları sil
+                db.query(JobPosting).filter(JobPosting.id.in_(job_ids)).delete(synchronize_session=False)
+            
+            # En son bu sahte şirket hesaplarını sil
+            db.query(User).filter(User.id.in_(seeded_user_ids)).delete(synchronize_session=False)
             db.commit()
+            print("Temizlik başarılı.")
 
-        # 1200 YENİ, GERÇEKÇİ VE DİNAMİK İLAN ÜRET
+        # 2. HER ŞİRKET İÇİN AYRI BİR İŞVEREN HESABI OLUŞTUR
+        print("Her şirket için izole işveren hesapları oluşturuluyor...")
+        company_user_map = {}
+        default_password = get_password_hash("Sirket123!") # TÜM ŞİRKETLERİN ORTAK ŞİFRESİ
+
+        for market in job_market_data:
+            for company_name in market["companies"]:
+                if company_name not in company_user_map:
+                    email = generate_company_email(company_name)
+                    
+                    user = User(
+                        full_name=company_name,
+                        email=email,
+                        hashed_password=default_password,
+                        user_role="isveren",
+                        is_active=True
+                    )
+                    db.add(user)
+                    db.flush()
+                    company_user_map[company_name] = user.id
+        db.commit()
+
+        # 3. 1200 ADET YENİ, GERÇEKÇİ VE DİNAMİK İLAN ÜRET
         job_postings_to_add = []
         for _ in range(1200):
-            # 1. Sektör, şirket ve rol seçimi
             market = random.choice(job_market_data)
             sector_name = market["sector"]
             company = random.choice(market["companies"])
@@ -158,13 +185,11 @@ def seed_database():
             
             pozisyon = role["title"]
             
-            # --- DİNAMİK BECERİ SEÇİMİ (Aynı skor sorununu çözen kısım) ---
+            # Dinamik Beceri Seçimi
             tum_beceriler = [b.strip() for b in role["skills"].split(',')]
-            # Tüm becerileri vermek yerine, her ilana rastgele 4 ila 7 arasında beceri ata
             secilecek_sayi = random.randint(4, min(len(tum_beceriler), 7))
             secilen_beceriler = random.sample(tum_beceriler, k=secilecek_sayi)
             beceriler_metni = ", ".join(secilen_beceriler)
-            # --------------------------------------------------------------
             
             # Çalışma türü ve konum
             work_type = random.choice(calisma_turleri)
@@ -183,10 +208,8 @@ def seed_database():
             min_maas = base_salary + random.randrange(-5000, 15000, 2500)
             max_maas = min_maas + random.randrange(15000, 50000, 5000)
             
-            # --- DİNAMİK METİNLER (Aynı skor sorununu çözen kısım) ---
             aciklama = generate_description(sector_name, pozisyon, company)
             gereksinim = get_dynamic_requirements(exp_level)
-            # ---------------------------------------------------------
 
             new_job = JobPosting(
                 title=pozisyon,
@@ -194,25 +217,33 @@ def seed_database():
                 location=konum,
                 description=aciklama,
                 requirements=gereksinim,
-                skills_required=beceriler_metni, # Dinamik seçilen beceriler
+                skills_required=beceriler_metni,
                 work_type=work_type,
                 experience_level=exp_level,
                 salary_min=float(min_maas),
                 salary_max=float(max_maas),
                 sector=sector_name,
                 is_active=True,
-                created_by=creator_id
+                created_by=company_user_map[company] # İlanı o şirketin ID'sine bağla!
             )
             job_postings_to_add.append(new_job)
 
-        print(f"Toplam {len(job_postings_to_add)} yeni nesil, varyanslı ilan hazırlanıyor...")
+        print(f"Toplam {len(job_postings_to_add)} yeni nesil ilan hazırlanıyor...")
         db.bulk_save_objects(job_postings_to_add)
         db.commit()
         print("[SUCCESS] İlanlar başarıyla Neon.tech veritabanına yüklendi!")
+        print("-" * 40)
+        print("TEST İÇİN ÖRNEK HESAPLAR:")
+        print("E-posta: info@trendyol.com   | Şifre: Sirket123!")
+        print("E-posta: info@garantibbva.com | Şifre: Sirket123!")
+        print("E-posta: info@turkcell.com    | Şifre: Sirket123!")
+        print("-" * 40)
         
     except Exception as e:
         db.rollback()
         print(f"[ERROR] Tohumlama sırasında bir hata oluştu: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
         print("--- İŞLEM BİTTİ ---")
