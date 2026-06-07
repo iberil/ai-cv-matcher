@@ -1,20 +1,12 @@
-
-from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
-from typing import List, Dict, Tuple
+import os
+import requests
+import logging
 import re
+import math
+from typing import List, Dict
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import logging
-import os
-import threading
-
-# Tokenizer hata vermemesi için Windows/Multithread ortamı paralellik ayarı
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-# Global Model Lock
-_model_lock = threading.Lock()
 
 # NLTK verilerini indir (ilk çalıştırmada)
 try:
@@ -29,32 +21,48 @@ from ..core.matching_constants import (
     NON_TECH_EDUCATION_KEYWORDS, TECH_EDUCATION_KEYWORDS
 )
 
+logger = logging.getLogger(__name__)
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+HF_EMBEDDING_API = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
 class CVJobMatcher:
     def __init__(self):
-        self.model = None
         self.stop_words = set(stopwords.words('english'))
+        self.headers = {"Authorization": f"Bearer {HF_TOKEN}"}
         
-    def _load_model(self):
-        """Model'i lazy loading ile yükle (Thread-Safe)"""
-        if self.model is None:
-            with _model_lock:
-                if self.model is None:
-                    # Türkçe destekleyen küçük ve hızlı model
-                    self.model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2') 
-        return self.model
+    def get_embedding(self, text: str) -> List[float]:
+        """Hugging Face API'den metin embedding'i al"""
+        if not text or not text.strip():
+            return []
+        
+        try:
+            response = requests.post(
+                HF_EMBEDDING_API,
+                headers=self.headers,
+                json={"inputs": text[:512]},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    return result[0] if isinstance(result[0], list) else result
+                return []
+            else:
+                logger.error(f"HF Embedding API error {response.status_code}: {response.text[:200]}")
+                return []
+        except Exception as e:
+            logger.error(f"HF API connection error: {e}")
+            return []
         
     def preprocess_text(self, text: str) -> str:
         """Metni temizle ve normalize et"""
         if not text:
             return ""
         
-        # Küçük harfe çevir
         text = text.lower()
-        
-        # Özel karakterleri temizle
         text = re.sub(r'[^\w\s]', ' ', text)
-        
-        # Fazla boşlukları temizle
         text = re.sub(r'\s+', ' ', text).strip()
         
         return text
@@ -62,14 +70,9 @@ class CVJobMatcher:
     def extract_skills_and_keywords(self, text: str) -> List[str]:
         """Metinden beceri ve anahtar kelimeleri çıkar"""
         processed_text = self.preprocess_text(text)
-        
-        # Tokenize et
         tokens = word_tokenize(processed_text)
-        
-        # Stop words'leri filtrele ve minimum uzunluk kontrolü
         keywords = [token for token in tokens 
                    if token not in self.stop_words and len(token) > 2]
-        
         return keywords
     
     def create_cv_profile(self, cv_data: Dict) -> str:
@@ -99,52 +102,47 @@ class CVJobMatcher:
         return " ".join(profile_parts)
     
     def calculate_similarity_score(self, cv_profile: str, job_profile: str) -> float:
-        """İki profil arasındaki benzerlik skorunu hesapla"""
+        """İki profil arasındaki benzerlik skorunu HF API ile hesapla"""
         try:
-            # Model'i lazy loading ile yükle
-            model = self._load_model()
+            cv_embedding = self.get_embedding(cv_profile)
+            job_embedding = self.get_embedding(job_profile)
             
-            # Metinleri embedding'e çevir
-            cv_embedding = model.encode([cv_profile])
-            job_embedding = model.encode([job_profile])
+            if not cv_embedding or not job_embedding:
+                logger.warning("Could not get embeddings from HF API")
+                return 0.0
             
-            # Cosine similarity hesapla
-            similarity = cosine_similarity(cv_embedding, job_embedding)[0][0]
+            # Cosine similarity manuel hesapla
+            dot_product = sum(a * b for a, b in zip(cv_embedding, job_embedding))
+            cv_mag = math.sqrt(sum(x**2 for x in cv_embedding))
+            job_mag = math.sqrt(sum(x**2 for x in job_embedding))
             
-            # 0-100 arası skora çevir
-            return float(similarity * 100)
+            if cv_mag == 0 or job_mag == 0:
+                return 0.0
+            
+            similarity = dot_product / (cv_mag * job_mag)
+            return float(max(0, similarity * 100))
             
         except Exception as e:
-            logging.error(f"Similarity calculation error: {e}")
+            logger.error(f"Similarity calculation error: {e}")
             return 0.0
     
     def calculate_critical_skill_penalty(self, cv_data: Dict, job_data: Dict) -> float:
-        """
-        Kritik beceri uyumsuzluğu için VETO sistemi ile ceza hesapla.
-        """
+        """Kritik beceri uyumsuzluğu için VETO sistemi"""
         
-        # 1. EĞİTİM GEREKSİNİMİ KONTROLÜ (EN ÖNCELİKLİ)
         education_penalty = self._check_education_requirement(cv_data, job_data)
         if education_penalty <= -50:
-            logging.info(f"EDUCATION VETO: Penalty = {education_penalty}")
+            logger.info(f"EDUCATION VETO: Penalty = {education_penalty}")
             return education_penalty
         
-        # 2. KRİTİK BECERİ KONTROLÜ
-        
-        # Verileri hazırla
         cv_skills_text = f"{cv_data.get('skills', '')} {cv_data.get('experience', '')} {cv_data.get('summary', '')}".lower()
         job_profile_text = f"{job_data.get('title', '')} {job_data.get('description', '')} {job_data.get('requirements', '')} {job_data.get('skills_required', '')}".lower()
         
-        # CV teknoloji odaklı mı?
         tech_keywords = ['developer', 'engineer', 'programmer', 'software', 'code', 'programming', 'mühendis', 'geliştirici', 'yazılım']
         is_tech_cv = any(keyword in cv_skills_text for keyword in tech_keywords)
         
-        # KRİTİK BECERİ EŞLEŞTİRME - VETO SİSTEMİ
         matched_role = None
         matched_config = None
         
-        # CRITICAL_SKILLS zaten spesifikten genele doğru sıralıdır (constants.py)
-        # Bu yüzden sırayla kontrol etmek yeterlidir.
         for role, config in CRITICAL_SKILLS.items():
             role_in_job = any(keyword in job_profile_text for keyword in config['keywords'])
             if role_in_job:
@@ -152,99 +150,72 @@ class CVJobMatcher:
                 matched_config = config
                 break
         
-        # Eşleşen rol varsa kontrol et
         if matched_role and matched_config:
-            logging.info(f"DEBUG - '{matched_role}' rolü iş ilanında tespit edildi.")
+            logger.info(f"DEBUG - '{matched_role}' rolü iş ilanında tespit edildi.")
             
-            # Eğer gerekli beceri listesi boşsa (Avukat, Doktor vb.), direkt ceza veya geçiş
             if not matched_config['required']:
-                # Eğer iş 'Avukat' gibi non-tech bir işse ve CV 'Developer' ise uyumsuzdur
-                # Ancak 'Non-Tech' kategorisi (muhasebe vb.) için bu kuralı esnetebiliriz
                 if matched_role not in ['Non-Tech'] and is_tech_cv:
-                     # Örn: Avukat ilanına Developer başvurursa
-                    logging.info(f"VETO: Teknoloji CV'si, '{matched_role}' rolü ile uyumsuz.")
+                    logger.info(f"VETO: Teknoloji CV'si, '{matched_role}' rolü ile uyumsuz.")
                     return -100
                 return 0.0
             
-            # Aday bu kritik becerilerden KAÇ TANESİNE sahip?
             matched_skills = [skill for skill in matched_config['required'] if skill in cv_skills_text]
             matched_count = len(matched_skills)
             
-            # DEBUG: Eşleşmeleri logla
-            logging.info(f"DEBUG - Aranan: {matched_config['required'][:5]}...")
-            logging.info(f"DEBUG - Bulunan: {matched_skills}")
-            logging.info(f"DEBUG - Eşleşme Sayısı: {matched_count}")
+            logger.info(f"DEBUG - Aranan: {matched_config['required'][:5]}...")
+            logger.info(f"DEBUG - Bulunan: {matched_skills}")
+            logger.info(f"DEBUG - Eşleşme Sayısı: {matched_count}")
             
-            # Eğer hiçbir kritik beceri yoksa -> VETO
             if matched_count == 0:
-                logging.info(f"VETO: İş ilanı '{matched_role}' rolünü istiyor ancak CV'de hiçbir kritik beceri bulunamadı.")
+                logger.info(f"VETO: İş ilanı '{matched_role}' rolünü istiyor ancak CV'de hiçbir kritik beceri bulunamadı.")
                 return matched_config['penalty']
             else:
-                logging.info(f"GEÇTİ: {matched_count} kritik beceri bulundu, '{matched_role}' için ceza yok.")
+                logger.info(f"GEÇTİ: {matched_count} kritik beceri bulundu, '{matched_role}' için ceza yok.")
                 return 0.0
         
-        return 0.0  # Hiçbir kritere takılmazsa ceza yok
+        return 0.0
     
     def _check_education_requirement(self, cv_data: Dict, job_data: Dict) -> float:
-        """
-        Eğitim gereksinimi kontrolü - VETO sistemi
-        Political Science mezunu teknik işlere başvuramaz
-        """
+        """Eğitim gereksinimi kontrolü - VETO sistemi"""
         
-        # CV eğitim bilgisi
         cv_education = cv_data.get('education', '').lower()
-        
-        # İş ilanı metni
         job_text = f"{job_data.get('title', '')} {job_data.get('description', '')} {job_data.get('requirements', '')}".lower()
         
-        logging.info(f"EDUCATION CHECK - CV: {cv_education[:50]}...")
-        logging.info(f"EDUCATION CHECK - Job: {job_text[:50]}...")
+        logger.info(f"EDUCATION CHECK - CV: {cv_education[:50]}...")
+        logger.info(f"EDUCATION CHECK - Job: {job_text[:50]}...")
         
-        # TEKNİK İŞLER İÇİN SIKI KONTROL
-        # TECH_JOB_KEYWORDS constants dosyasından alınır
-        
-        # İş ilanı teknik mi?
         is_tech_job = any(keyword in job_text for keyword in TECH_JOB_KEYWORDS)
-        logging.info(f"EDUCATION CHECK - Is tech job: {is_tech_job}")
+        logger.info(f"EDUCATION CHECK - Is tech job: {is_tech_job}")
         
         if is_tech_job:
-            # 1. Önce Teknik Eğitimi Kontrol Et (Varsa Geçir)
-            # TECH_EDUCATION_KEYWORDS constants dosyasından alınır
             has_tech_education = any(keyword in cv_education for keyword in TECH_EDUCATION_KEYWORDS)
-            logging.info(f"EDUCATION CHECK - Has tech education: {has_tech_education}")
+            logger.info(f"EDUCATION CHECK - Has tech education: {has_tech_education}")
             
             if has_tech_education:
-                logging.info(f"EDUCATION PASS: Teknik iş ilanı ve teknik eğitim mevcut.")
+                logger.info(f"EDUCATION PASS: Teknik iş ilanı ve teknik eğitim mevcut.")
                 return 0.0
 
-            # 2. Teknik eğitimi yoksa, Teknik Olmayan (Veto) listesine bak
-            # NON_TECH_EDUCATION_KEYWORDS constants dosyasından alınır
             has_non_tech_education = any(keyword in cv_education for keyword in NON_TECH_EDUCATION_KEYWORDS)
-            logging.info(f"EDUCATION CHECK - Has non-tech education: {has_non_tech_education}")
+            logger.info(f"EDUCATION CHECK - Has non-tech education: {has_non_tech_education}")
             
             if has_non_tech_education:
-                logging.info(f"EDUCATION VETO: Teknik iş ilanı, uyumsuz eğitim alanı - CV: {cv_education}")
-                return -100  # Kesin uyumsuzluk
+                logger.info(f"EDUCATION VETO: Teknik iş ilanı, uyumsuz eğitim alanı - CV: {cv_education}")
+                return -100
             
-            # 3. Ne teknik ne de non-tech bulabildik (Belirsiz durum)
-            logging.info(f"EDUCATION WARNING: Teknik iş ilanı, eğitim alanı belirsiz - CV: {cv_education}")
-            return -90   # Yüksek ceza
+            logger.info(f"EDUCATION WARNING: Teknik iş ilanı, eğitim alanı belirsiz - CV: {cv_education}")
+            return -90
         
-        return 0.0  # Eğitim uyumlu
+        return 0.0
     
     def calculate_skill_match_bonus(self, cv_skills: List[str], job_skills: List[str]) -> float:
         """Beceri eşleşme bonusu hesapla"""
         if not cv_skills or not job_skills:
             return 0.0
         
-        # Becerileri normalize et
         cv_skills_norm = [skill.lower().strip() for skill in cv_skills]
         job_skills_norm = [skill.lower().strip() for skill in job_skills]
         
-        # Eşleşen beceri sayısı
         matches = len(set(cv_skills_norm) & set(job_skills_norm))
-        
-        # Bonus skoru (maksimum %20)
         bonus = min((matches / len(job_skills_norm)) * 20, 20)
         
         return bonus
@@ -255,30 +226,25 @@ class CVJobMatcher:
         job_skills_text = job_data.get('skills_required', '').lower()
         
         if not job_skills_text:
-            return 0.5  # Beceri belirtilmemişse nötr
+            return 0.5
         
-        # Becerileri parse et
         job_skills = [s.strip() for s in job_skills_text.split(',') if s.strip()]
         
         if not job_skills:
             return 0.5
         
-        # Eşleşen beceri sayısı
         matched_count = sum(1 for skill in job_skills if skill in cv_skills_text)
-        
         return matched_count / len(job_skills)
     
     def match_cv_with_jobs_base_scores(self, cv_data: Dict, jobs_data: List[Dict]) -> Dict[int, float]:
-        """CV'yi iş ilanlarıyla anlamsal olarak karşılaştırıp sadece temel skorları (base_score) döner. (Job ID -> Score)"""
+        """CV'yi iş ilanlarıyla karşılaştırıp temel skorları döner"""
         cv_profile = self.create_cv_profile(cv_data)
         
         base_scores = {}
+        cv_embedding = self.get_embedding(cv_profile)
         
-        try:
-            model = self._load_model()
-            cv_embedding = model.encode([cv_profile])
-        except Exception as e:
-            logging.error(f"Model yükleme hatası: {e}")
+        if not cv_embedding:
+            logger.error("Could not get CV embedding")
             return {}
         
         for job in jobs_data:
@@ -287,37 +253,32 @@ class CVJobMatcher:
                 continue
                 
             try:
-                # İş profili oluştur
                 job_profile = self.create_job_profile(job)
+                job_embedding = self.get_embedding(job_profile)
                 
-                # Temel benzerlik skoru
-                job_embedding = model.encode([job_profile])
-                similarity = cosine_similarity(cv_embedding, job_embedding)[0][0]
-                base_score = float(similarity * 100)
-                
-                base_scores[job_id] = base_score
+                if job_embedding:
+                    similarity = self._cosine_similarity(cv_embedding, job_embedding)
+                    base_scores[job_id] = float(similarity * 100)
+                else:
+                    base_scores[job_id] = 0.0
                 
             except Exception as e:
-                logging.error(f"Job matching error for job {job_id}: {e}")
+                logger.error(f"Job matching error for job {job_id}: {e}")
                 base_scores[job_id] = 0.0
                 
         return base_scores
     
     def match_job_with_cvs_base_scores(self, job_data: Dict, cvs_data: List[Dict]) -> Dict[int, float]:
-        """Bir iş ilanını birden fazla CV ile model kullanarak anlamsal olarak karşılaştırır 
-        ve sadece temel benzerlik (base_score) skorlarını döndürür. (CV ID -> Score)"""
+        """Bir iş ilanını birden fazla CV ile karşılaştırır"""
         job_profile = self.create_job_profile(job_data)
-        
-        # Model'i yükle ve iş ilanını SADECE BİR KERE vektör uzayına çevir
-        try:
-            model = self._load_model()
-            job_embedding = model.encode([job_profile])
-        except Exception as e:
-            logging.error(f"Model yükleme veya iş ilanı kodlama hatası: {e}")
-            job_embedding = None
+        job_embedding = self.get_embedding(job_profile)
 
         base_scores = {}
         
+        if not job_embedding:
+            logger.error("Could not get job embedding")
+            return {}
+
         for cv_data in cvs_data:
             cv_id = cv_data.get('id')
             if not cv_id:
@@ -325,35 +286,54 @@ class CVJobMatcher:
                 
             try:
                 cv_profile = self.create_cv_profile(cv_data)
+                cv_embedding = self.get_embedding(cv_profile)
                 
-                # Temel benzerlik skoru (Kayıtlı job embedding kullanılarak)
-                base_score = 0.0
-                if job_embedding is not None:
-                    cv_embedding = model.encode([cv_profile])
-                    similarity = cosine_similarity(cv_embedding, job_embedding)[0][0]
-                    base_score = float(similarity * 100)
-                
-                base_scores[cv_id] = base_score
+                if cv_embedding:
+                    similarity = self._cosine_similarity(cv_embedding, job_embedding)
+                    base_scores[cv_id] = float(similarity * 100)
+                else:
+                    base_scores[cv_id] = 0.0
                 
             except Exception as e:
-                logging.error(f"CV eşleştirme hatası (CV ID: {cv_id}): {e}")
+                logger.error(f"CV matching error (CV ID: {cv_id}): {e}")
                 base_scores[cv_id] = 0.0
                 
         return base_scores
     
+    def _cosine_similarity(self, vec_a: List[float], vec_b: List[float]) -> float:
+        """Manuel cosine similarity hesapla"""
+        if not vec_a or not vec_b:
+            return 0.0
+        
+        dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+        mag_a = math.sqrt(sum(x**2 for x in vec_a))
+        mag_b = math.sqrt(sum(x**2 for x in vec_b))
+        
+        if mag_a == 0 or mag_b == 0:
+            return 0.0
+        
+        return max(0, dot_product / (mag_a * mag_b))
+    
     def get_top_matches(self, cv_data: Dict, jobs_data: List[Dict], limit: int = 10) -> List[Dict]:
         """En uygun iş ilanlarını getir"""
-        matches = self.match_cv_with_jobs(cv_data, jobs_data)
+        base_scores = self.match_cv_with_jobs_base_scores(cv_data, jobs_data)
         
-        top_matches = []
-        for job, score in matches[:limit]:
-            job_with_score = job.copy()
-            job_with_score['match_score'] = round(score, 2)
-            top_matches.append(job_with_score)
+        # İş ilanlarını score ile eşleştir
+        matches = []
+        for job in jobs_data:
+            job_id = job.get('id')
+            if job_id in base_scores:
+                job_with_score = job.copy()
+                job_with_score['match_score'] = round(base_scores[job_id], 2)
+                matches.append((job_with_score, base_scores[job_id]))
         
+        # Score'a göre sırala
+        matches.sort(key=lambda x: x[1], reverse=True)
+        
+        top_matches = [job for job, score in matches[:limit]]
         return top_matches
 
-# Global matcher instance - Lazy loading için boş başlat
+# Global matcher instance
 matcher = None
 
 def get_matcher():
