@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://ai-cv-matcher-5sui.onrender.com/api/v1';
 
 const RegisterUserSchema = z.object({
   fullName: z.string().min(2, "İsim en az 2 karakter olmalıdır."),
