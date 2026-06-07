@@ -32,6 +32,7 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://ai-cv-matcher.vercel.app",
+    "https://ai-cv-matcher-*.vercel.app",
     "https://ai-cv-matcher-5sui.onrender.com"
 ]
 
