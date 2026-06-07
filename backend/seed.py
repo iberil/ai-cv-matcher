@@ -4,107 +4,105 @@ import sys
 import random
 from sqlalchemy.orm import Session
 
-# Backend app'ı import etmek için path'i ayarla
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import SessionLocal, engine
 from app.models import User
-from app.models.job_posting import JobPosting, CVJobMatch  # CVJobMatch eklendi
+from app.models.job_posting import JobPosting, CVJobMatch
 from app.core.security import get_password_hash
 
-# Sektör ve Pozisyon Havuzu
-sektor_verileri = {
-    "Tarım ve Hayvancılık": {
-        "pozisyonlar": ["Ziraat Mühendisi", "Akıllı Tarım Uzmanı", "Sulama Sistemleri Teknisyeni", "Tedarik Zinciri Sorumlusu", "Dikey Tarım Operatörü"],
-        "beceriler": "IoT, Sensör Teknolojileri, Drone Kullanımı, Excel, Veri Analizi"
+# GERÇEKÇİ VE KATEGORİZE EDİLMİŞ VERİ HAVUZU
+job_market_data = [
+    {
+        "sector": "Bilgi Teknolojileri ve Yazılım",
+        "companies": ["Trendyol", "Getir", "OBSS", "Softtech", "Enoca", "DefineX", "Aselsan", "Havelsan", "Turkcell", "Vodafone", "Kariyer.net", "Sahibinden", "Commencis", "Etiya"],
+        "roles": [
+            {"title": "Backend Developer", "skills": "Java, Spring Boot, Python, FastAPI, C#, .NET Core, Microservices, PostgreSQL, Redis"},
+            {"title": "Frontend Developer", "skills": "JavaScript, TypeScript, React, Next.js, Angular, Vue.js, HTML5, CSS3, Tailwind"},
+            {"title": "Full Stack Developer", "skills": "JavaScript, React, Node.js, Python, MongoDB, SQL, Git, REST API"},
+            {"title": "Data Engineer", "skills": "Python, SQL, Apache Spark, Hadoop, Airflow, ETL, BigQuery, AWS, Kafka"},
+            {"title": "Data Scientist", "skills": "Python, Machine Learning, Deep Learning, TensorFlow, PyTorch, Scikit-learn, SQL, Pandas"},
+            {"title": "DevOps Engineer", "skills": "Linux, Docker, Kubernetes, CI/CD, Jenkins, Terraform, AWS, Azure, Bash"},
+            {"title": "iOS Developer", "skills": "Swift, iOS SDK, Xcode, CoreData, RESTful APIs, Git"},
+            {"title": "Android Developer", "skills": "Kotlin, Android Studio, Java, MVVM, Coroutines, REST API"},
+            {"title": "QA Automation Engineer", "skills": "Selenium, Cypress, Appium, Python, Java, Test Automation, Postman"},
+            {"title": "AI/ML Engineer", "skills": "Python, PyTorch, NLP, LLM, Hugging Face, Computer Vision, MLOps"},
+            {"title": "Cyber Security Analyst", "skills": "Network Security, CEH, Penetration Testing, SIEM, Linux, Cryptography"},
+            {"title": "Product Owner", "skills": "Agile, Scrum, Jira, Product Management, UX/UI, Wireframing"}
+        ]
     },
-    "Lojistik ve Taşımacılık": {
-        "pozisyonlar": ["Operasyon Yöneticisi", "Gümrük Müşavir Yardımcısı", "Filo Koordinatörü", "Depo Yönetim Uzmanı", "Uluslararası Nakliye Sorumlusu"],
-        "beceriler": "SAP, ERP, Excel, İngilizce, Planlama, Stok Yönetimi"
+    {
+        "sector": "Finans ve Bankacılık",
+        "companies": ["Garanti BBVA", "Akbank", "İş Bankası", "Yapı Kredi", "QNB Finansbank", "DenizBank", "Allianz", "Anadolu Sigorta"],
+        "roles": [
+            {"title": "İş Analisti", "skills": "SQL, Excel, BPMN, Gereksinim Analizi, Agile, Jira, Veri Modelleme"},
+            {"title": "Veri Analisti", "skills": "SQL, Python, Power BI, Tableau, Excel, İstatistik, Raporlama"},
+            {"title": "Risk Yönetimi Uzmanı", "skills": "Finansal Analiz, Risk Modelleme, Python, Basel, Kredi Riski"},
+            {"title": "Mali Müşavir / Muhasebe", "skills": "Logo, SAP FI, Vergi Mevzuatı, Bilanço, Mutabakat"}
+        ]
     },
-    "Eğitim ve Danışmanlık": {
-        "pozisyonlar": ["Eğitim Teknoloğu", "İngilizce Öğretmeni", "Akademik Danışman", "Kurumsal Eğitmen", "Öğrenci İşleri Uzmanı"],
-        "beceriler": "Sunum Becerileri, LMS, Zoom/Teams, Pedagojik Formasyon, İngilizce"
+    {
+        "sector": "E-Ticaret ve Perakende",
+        "companies": ["Migros", "CarrefourSA", "BİM", "A101", "LC Waikiki", "Boyner", "DeFacto", "Koton"],
+        "roles": [
+            {"title": "E-Ticaret Yöneticisi", "skills": "Dijital Pazarlama, SEO, Google Analytics, Shopify, E-ihracat"},
+            {"title": "Tedarik Zinciri Uzmanı", "skills": "Lojistik, ERP, SAP, Stok Yönetimi, Planlama, Excel"},
+            {"title": "Kategori Uzmanı", "skills": "Fiyatlandırma, Rakip Analizi, Satış Stratejisi, Excel, İletişim"}
+        ]
     },
-    "Gıda ve Restoran": {
-        "pozisyonlar": ["Gıda Mühendisi", "Restoran Müdürü", "Mutfak Şefi", "Kalite Kontrol Sorumlusu", "Diyetisyen"],
-        "beceriler": "HACCP, ISO 22000, Hijyen Eğitimi, Ekip Yönetimi, Maliyet Analizi"
+    {
+        "sector": "Sağlık ve İlaç",
+        "companies": ["Acıbadem", "Memorial", "Florence Nightingale", "Abdi İbrahim", "Deva Holding", "Nobel İlaç"],
+        "roles": [
+            {"title": "Biyomedikal Mühendisi", "skills": "Tıbbi Cihazlar, ISO 13485, Kalibrasyon, Bakım Onarım, Teknik Destek"},
+            {"title": "Klinik Araştırma Uzmanı", "skills": "GCP, Klinik Çalışmalar, Dokümantasyon, İngilizce, Raporlama"},
+            {"title": "Sağlık Veri Analisti", "skills": "SQL, Sağlık Bilişimi, Python, Veri Madenciliği, İstatistik"}
+        ]
     },
-    "İnşaat ve Emlak": {
-        "pozisyonlar": ["Şantiye Şefi", "İnşaat Mühendisi", "Gayrimenkul Danışmanı", "BIM Uzmanı", "Mimar"],
-        "beceriler": "AutoCAD, Revit, MS Project, Statik Analiz, Saha Yönetimi"
+    {
+        "sector": "Otomotiv ve Üretim",
+        "companies": ["Ford Otosan", "Tofaş", "Otokar", "BMC", "Mercedes-Benz Türk", "Bosch", "Toyota Türkiye"],
+        "roles": [
+            {"title": "Gömülü Sistemler Mühendisi (Embedded)", "skills": "C, C++, Microcontrollers, RTOS, ARM, CAN bus, MATLAB"},
+            {"title": "Makine Mühendisi", "skills": "SolidWorks, AutoCAD, ANSYS, Üretim Planlama, Termodinamik"},
+            {"title": "Kalite Güvence Mühendisi", "skills": "ISO 9001, Six Sigma, Lean Manufacturing, FMEA, Kalite Kontrol"},
+            {"title": "Otomasyon Mühendisi", "skills": "PLC, SCADA, Siemens, TIA Portal, Robotik, HMI"}
+        ]
     },
-    "Tekstil ve Moda": {
-        "pozisyonlar": ["Modelist", "Tekstil Mühendisi", "Moda Tasarımcısı", "Planlama Uzmanı", "Satın Alma Sorumlusu"],
-        "beceriler": "Adobe Illustrator, Gerber, Örme Bilgisi, Kumaş Analizi, PLM"
-    },
-    "Hukuk ve Uyum": {
-        "pozisyonlar": ["Avukat", "Hukuk Müşaviri", "KVKK Danışmanı", "Uyum (Compliance) Uzmanı", "İcra Katibi"],
-        "beceriler": "KVKK, GDPR, UYAP, Ticaret Hukuku, Sözleşme Yönetimi"
-    },
-    "Medya ve Sanat": {
-        "pozisyonlar": ["Video Editor", "Grafik Tasarımcı", "İçerik Editörü", "Sosyal Medya Yöneticisi", "Kreatif Direktör"],
-        "beceriler": "Adobe Premiere, After Effects, Photoshop, SEO, Metin Yazarlığı"
-    },
-    "Sağlık ve İlaç": {
-        "pozisyonlar": ["Tıbbi Mümessil", "Biyomedikal Mühendisi", "Hasta Kabul Sorumlusu", "Laboratuvar Teknisyeni", "Eczacı"],
-        "beceriler": "İlaç Tanıtımı, Tıbbi Cihaz Bakımı, Excel, İletişim, Raporlama"
-    },
-    "Turizm ve Otelcilik": {
-        "pozisyonlar": ["Ön Büro Müdürü", "Tur Operatörü", "Kat Hizmetleri Sorumlusu", "Acente Satış Temsilcisi", "Etkinlik Planlamacı"],
-        "beceriler": "Opera, Amadeus, İngilizce, Rusça, CRM, Satış Teknikleri"
+    {
+        "sector": "Telekomünikasyon",
+        "companies": ["Turkcell", "Vodafone", "Türk Telekom", "Netaş"],
+        "roles": [
+            {"title": "Network Mühendisi", "skills": "Cisco, CCNA, BGP, OSPF, TCP/IP, Firewall, Routing & Switching"},
+            {"title": "Telekomünikasyon Uzmanı", "skills": "5G, LTE, Fiber Optik, RF Planlama, Transmisyon"},
+            {"title": "Sistem Yöneticisi", "skills": "Linux, Windows Server, VMware, Active Directory, Backup"}
+        ]
     }
-}
-
-# Türkiye'nin gerçek büyük şirketleri ve holding adları
-sirketler = [
-    # Teknoloji ve Yazılım
-    "Turkcell", "Vodafone", "Telia", "Teknosa", "Bilgisayar Kavramları", "Aselsan",
-    # Enerji
-    "ENEL", "Enerjisa", "Eren Holding", "Zorlu Holding", "Akfen",
-    # Gıda
-    "Nestlé", "Unilever", "Danone", "Ülker", "Pepsico",
-    # Otomotiv
-    "Tofaş", "BMC", "Otokar", "Bosch", "Daimler",
-    # Tekstil
-    "Boyner", "Madiva", "Özdilek", "Kipaş", "Süper",
-    # İnşaat ve Emlak
-    "Emlak Konut", "Polat", "Dap Yapı", "Ronesans", "Mace",
-    # Kimya ve Plastik
-    "Petkim", "Tarhan", "Sabancı", "Akçansa", "Deuchem",
-    # Turizm
-    "Turkish Airlines", "Pegasus", "Hyatt", "Hilton", "Meliá",
-    # Perakende
-    "Carrefoursa", "Migros", "Bim", "A101", "Sokos",
-    # Finans
-    "Garanti BBVA", "Denizbank", "Akbank", "İş Bankası", "Halkbank",
-    # İlaç
-    "Humapharma", "Deva", "Cipla", "Nobel", "Novartis",
-    # Lojistik
-    "Kargo Handling", "UPS", "DHL", "TNT", "Aras",
-    # Danışmanlık
-    "Accenture", "Deloitte", "PwC", "KPMG", "EY",
-    # Medya
-    "Hürriyet", "Doğan Medya", "Turkuvaz", "Cumhuriyet", "Sözcü",
-    # Sağlık
-    "Acibadem", "American Hospital", "Memorial", "Ümraniye Hospital", "Liv",
 ]
 
-konumlar = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Gaziantep", "Kayseri", "Konya", "Mersin"]
+konumlar = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Kocaeli", "Eskişehir", "Gaziantep", "Uzaktan"]
 calisma_turleri = ["remote", "hybrid", "office"]
 deneyim_seviyeleri = ["entry", "mid", "senior"]
+
+def generate_description(sector, title, company):
+    desc_templates = [
+        f"{company} olarak, {sector} sektöründeki yenilikçi projelerimizde görev alacak deneyimli bir {title} arıyoruz.",
+        f"Büyüyen ekibimize katılmak üzere, tutkulu ve teknolojiye meraklı bir {title} arayışımız bulunmaktadır.",
+        f"Kariyerinizi {company} çatısı altında, alanında uzman ekiplerle çalışarak ileriye taşımak isterseniz bu ilan tam size göre!",
+        f"{sector} alanında pazar lideri olan şirketimizde, {title} pozisyonunda fark yaratacak takım arkadaşları arıyoruz."
+    ]
+    return random.choice(desc_templates)
 
 def seed_database():
     db: Session = SessionLocal()
     try:
-        print("--- VERITABANI TOHUMLAMA BASLADI ---")
+        print("--- VERİTABANI TOHUMLAMA BAŞLADI ---")
         
-        # 1. Sistem işveren kullanıcısını kontrol et/oluştur
         system_employer = db.query(User).filter(User.email == "sistem@isveren.com").first()
         if not system_employer:
-            print("Sistem isveren kullanicisi bulunamadi, olusturuluyor...")
+            print("Sistem işveren kullanıcısı oluşturuluyor...")
             system_employer = User(
-                full_name="Sistem Ise Alim Departmani",
+                full_name="Sistem İşe Alım Departmanı",
                 email="sistem@isveren.com",
                 hashed_password=get_password_hash("SistemSifresi123!"),
                 user_role="isveren",
@@ -114,77 +112,80 @@ def seed_database():
             db.flush()
         
         creator_id = system_employer.id
-        print(f"Ilanlar su kullaniciya baglanacak: ID {creator_id} ({system_employer.full_name})")
 
-        # 2. MEVCUT İLANLARI TEMİZLE (Yeni güncelleme)
+        # ESKİ İLANLARI TEMİZLE
         existing_jobs = db.query(JobPosting).filter(JobPosting.created_by == creator_id)
         existing_count = existing_jobs.count()
-        
         if existing_count > 0:
-            print(f"Eski uretilmis {existing_count} adet ilan bulundu. Temizleniyor...")
-            
-            # Veritabanı hatası almamak için önce bu ilanlara ait "eşleşme sonuçlarını" silmeliyiz
+            print(f"Mevcut {existing_count} ilan ve ilişkili eşleşmeler siliniyor...")
             job_ids = [job.id for job in existing_jobs.all()]
             if job_ids:
                 db.query(CVJobMatch).filter(CVJobMatch.job_posting_id.in_(job_ids)).delete(synchronize_session=False)
-            
-            # Sonra eski ilanların kendisini sil
             existing_jobs.delete(synchronize_session=False)
             db.commit()
-            print("Eski ilanlar basariyla silindi. Yeni veriler uretiliyor...")
 
-        # 3. 1200 adet ilan üret
+        # 1200 YENİ VE GERÇEKÇİ İLAN ÜRET
         job_postings_to_add = []
-        for i in range(1200):
-            sektor_adi = random.choice(list(sektor_verileri.keys()))
-            detay = sektor_verileri[sektor_adi]
+        for _ in range(1200):
+            # 1. Sektörü seç (Bilişim sektörünün gelme ihtimalini artırmak için ağırlıklı seçim yapılabilir, ama şimdilik rastgele)
+            market = random.choice(job_market_data)
+            sector_name = market["sector"]
             
-            pozisyon = random.choice(detay["pozisyonlar"])
-            sirket = random.choice(sirketler)
+            # 2. Sektörün içinden uygun bir şirket ve rol seç
+            company = random.choice(market["companies"])
+            role = random.choice(market["roles"])
             
-            konum = random.choice(konumlar)
+            pozisyon = role["title"]
+            beceriler = role["skills"]
+            
+            # 3. Çalışma türü ve konum mantığı (IT işleri daha çok remote/hybrid olur)
             work_type = random.choice(calisma_turleri)
-            if work_type == "remote":
-                konum = "Uzaktan - Turkiye"
+            if work_type == "remote" or sector_name == "Bilgi Teknolojileri ve Yazılım" and random.random() > 0.5:
+                konum = "Uzaktan (Tüm Türkiye)"
+                work_type = "remote" if work_type == "office" else work_type
+            else:
+                konum = random.choice(konumlar)
 
-            min_maas = random.randrange(35000, 85000, 2500)
-            max_maas = min_maas + random.randrange(10000, 40000, 5000)
-            
-            aciklama = f"{sektor_adi} alaninda buyuyen ekibimize {pozisyon} olarak katki saglayacak, sorumluluk sahibi takim arkadaslari ariyoruz."
-            gereksinim = f"Ilgili universite bolumlerinden mezun, sektorde tecrubesi olan ve dinamik calisma ortamina uyum saglayabilecek adaylar."
+            # 4. Maaş mantığı (Senior daha çok alır, IT daha çok alır vb.)
             exp_level = random.choice(deneyim_seviyeleri)
+            base_salary = 40000 if exp_level == "entry" else (70000 if exp_level == "mid" else 110000)
+            if sector_name == "Bilgi Teknolojileri ve Yazılım":
+                base_salary += 20000
+                
+            min_maas = base_salary + random.randrange(-5000, 15000, 2500)
+            max_maas = min_maas + random.randrange(15000, 50000, 5000)
+            
+            aciklama = generate_description(sector_name, pozisyon, company)
+            gereksinim = f"İlgili bölümlerden mezun, {exp_level} seviyesinde tecrübeye sahip, belirtilen teknoloji ve yetkinliklerde uzman adaylar."
 
             new_job = JobPosting(
                 title=pozisyon,
-                company_name=sirket,
+                company_name=company,
                 location=konum,
                 description=aciklama,
                 requirements=gereksinim,
-                skills_required=detay["beceriler"],
+                skills_required=beceriler,
                 work_type=work_type,
                 experience_level=exp_level,
                 salary_min=float(min_maas),
                 salary_max=float(max_maas),
-                sector=sektor_adi,
+                sector=sector_name,
                 is_active=True,
                 created_by=creator_id
             )
             job_postings_to_add.append(new_job)
 
-        # 4. Toplu ekleme
-        print(f"{len(job_postings_to_add)} adet yeni ilan hazirlaniyor...")
+        print(f"Toplam {len(job_postings_to_add)} yeni nesil, mantıklı ilan hazırlanıyor...")
         db.bulk_save_objects(job_postings_to_add)
         db.commit()
-        print("[SUCCESS] 1200 adet karisik is ilani basariyla veritabanina yuklendi!")
+        print("[SUCCESS] İlanlar başarıyla Neon.tech veritabanına yüklendi!")
         
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] Tohumlama sirasinda bir hata olustu: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[ERROR] Tohumlama sırasında bir hata oluştu: {e}")
     finally:
         db.close()
-        print("--- ISLEM BITTI ---")
+        print("--- İŞLEM BİTTİ ---")
 
 if __name__ == "__main__":
     seed_database()
