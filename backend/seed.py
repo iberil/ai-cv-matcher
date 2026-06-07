@@ -2,8 +2,8 @@
 import os
 import sys
 import random
-import re
 from sqlalchemy.orm import Session
+from sqlalchemy import text # Veritabanı temizliği için eklendi
 
 # Backend app'ı import etmek için path'i ayarla
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,9 +88,7 @@ deneyim_seviyeleri = ["entry", "mid", "senior"]
 
 def generate_company_email(company_name: str) -> str:
     """Şirket isminden info@sirketadi.com şeklinde e-posta üretir."""
-    # Küçük harfe çevir ve boşlukları sil
     c = company_name.lower().replace(" ", "").replace(".", "").replace("-", "")
-    # Türkçe karakterleri İngilizceye çevir
     replacements = {"ı": "i", "ğ": "g", "ü": "u", "ş": "s", "ö": "o", "ç": "c"}
     for tr, en in replacements.items():
         c = c.replace(tr, en)
@@ -131,32 +129,47 @@ def seed_database():
     try:
         print("--- VERİTABANI TOHUMLAMA BAŞLADI ---")
         
-        # 1. ESKİ SAHTE İLANLARI VE ŞİRKETLERİ TEMİZLE
-        print("Eski tohumlanmış ilanlar ve şirketler temizleniyor...")
+        # =========================================================================
+        # 1. KÖKTEN TEMİZLİK (Tüm Sahte Hesapları, İlanları ve Başvuruları Sil)
+        # =========================================================================
+        print("Veritabanındaki tüm eski 'Sistem' ve 'Şirket' verileri aranıyor...")
         
-        # Sadece bu script tarafından oluşturulmuş "info@..." mailine sahip kullanıcıları bul
-        # Böylece senin manuel eklediğin gerçek hesaplara zarar gelmez.
-        seeded_users = db.query(User).filter(User.email.like("info@%.com")).all()
+        seeded_users = db.query(User).filter(
+            (User.email.like("info@%.com")) | (User.email == "sistem@isveren.com")
+        ).all()
+        
         seeded_user_ids = [u.id for u in seeded_users]
         
         if seeded_user_ids:
-            # Önce bu şirketlere ait eşleşmeleri sil
+            print(f"Toplam {len(seeded_user_ids)} adet sahte işveren hesabı bulundu. Siliniyor...")
+            
             jobs_to_delete = db.query(JobPosting).filter(JobPosting.created_by.in_(seeded_user_ids)).all()
             job_ids = [j.id for j in jobs_to_delete]
+            
             if job_ids:
+                print(f"Bu hesaplara ait {len(job_ids)} adet eski ilan ve kalıntıları siliniyor...")
+                
+                # --- KRİTİK GÜNCELLEME: Önce Başvuruları (Job Applications) sil ---
+                formatted_ids = ",".join(map(str, job_ids))
+                db.execute(text(f"DELETE FROM job_applications WHERE job_id IN ({formatted_ids})"))
+                
+                # Sonra Eşleşmeleri sil
                 db.query(CVJobMatch).filter(CVJobMatch.job_posting_id.in_(job_ids)).delete(synchronize_session=False)
-                # Sonra ilanları sil
+                
+                # Sonra İlanları sil
                 db.query(JobPosting).filter(JobPosting.id.in_(job_ids)).delete(synchronize_session=False)
             
-            # En son bu sahte şirket hesaplarını sil
+            # En son sahte kullanıcıları sil
             db.query(User).filter(User.id.in_(seeded_user_ids)).delete(synchronize_session=False)
             db.commit()
-            print("Temizlik başarılı.")
+            print("TEMİZLİK TAMAMLANDI! Veritabanı artık tertemiz.\n")
 
-        # 2. HER ŞİRKET İÇİN AYRI BİR İŞVEREN HESABI OLUŞTUR
-        print("Her şirket için izole işveren hesapları oluşturuluyor...")
+        # =========================================================================
+        # 2. YENİ ŞİRKET HESAPLARINI OLUŞTUR
+        # =========================================================================
+        print("Şirketler için yeni izole hesaplar oluşturuluyor...")
         company_user_map = {}
-        default_password = get_password_hash("Sirket123!") # TÜM ŞİRKETLERİN ORTAK ŞİFRESİ
+        default_password = get_password_hash("Sirket123!")
 
         for market in job_market_data:
             for company_name in market["companies"]:
@@ -175,7 +188,9 @@ def seed_database():
                     company_user_map[company_name] = user.id
         db.commit()
 
-        # 3. 1200 ADET YENİ, GERÇEKÇİ VE DİNAMİK İLAN ÜRET
+        # =========================================================================
+        # 3. YENİ 1200 İLANI ÜRET VE YÜKLE
+        # =========================================================================
         job_postings_to_add = []
         for _ in range(1200):
             market = random.choice(job_market_data)
@@ -191,7 +206,6 @@ def seed_database():
             secilen_beceriler = random.sample(tum_beceriler, k=secilecek_sayi)
             beceriler_metni = ", ".join(secilen_beceriler)
             
-            # Çalışma türü ve konum
             work_type = random.choice(calisma_turleri)
             if work_type == "remote" or (sector_name == "Bilgi Teknolojileri ve Yazılım" and random.random() > 0.5):
                 konum = "Uzaktan (Tüm Türkiye)"
@@ -199,7 +213,6 @@ def seed_database():
             else:
                 konum = random.choice(konumlar)
 
-            # Deneyim seviyesi ve maaş
             exp_level = random.choice(deneyim_seviyeleri)
             base_salary = 40000 if exp_level == "entry" else (70000 if exp_level == "mid" else 110000)
             if sector_name == "Bilgi Teknolojileri ve Yazılım":
@@ -224,7 +237,7 @@ def seed_database():
                 salary_max=float(max_maas),
                 sector=sector_name,
                 is_active=True,
-                created_by=company_user_map[company] # İlanı o şirketin ID'sine bağla!
+                created_by=company_user_map[company]
             )
             job_postings_to_add.append(new_job)
 
@@ -236,7 +249,6 @@ def seed_database():
         print("TEST İÇİN ÖRNEK HESAPLAR:")
         print("E-posta: info@trendyol.com   | Şifre: Sirket123!")
         print("E-posta: info@garantibbva.com | Şifre: Sirket123!")
-        print("E-posta: info@turkcell.com    | Şifre: Sirket123!")
         print("-" * 40)
         
     except Exception as e:
