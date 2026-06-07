@@ -42,7 +42,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
 
     const fetchJob = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`);
+        const response = await fetch(`http:///api/v1/jobs/${jobId}`);
         const job = await response.json();
         
         setFormData({
@@ -81,7 +81,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
         return;
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`, {
+      const response = await fetch(`http:///api/v1/jobs/${jobId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

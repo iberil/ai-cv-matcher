@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { LogOut, MessageCircle } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 
+const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'https://ai-cv-matcher-5sui.onrender.com/api/v1';
+
 function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -20,7 +22,8 @@ function Navbar() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/users/me`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -39,7 +42,8 @@ function Navbar() {
       if (!token) return;
 
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/messages/conversations", {
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/messages/conversations`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {
@@ -55,7 +59,6 @@ function Navbar() {
     fetchUser();
     fetchUnreadMessages();
     
-    // Poll for unread messages every 2 minutes
     const interval = setInterval(fetchUnreadMessages, 120000);
     return () => clearInterval(interval);
   }, []);

@@ -45,7 +45,7 @@ export default function MessagesDrawer({
       const token = localStorage.getItem("accessToken");
       if (!token) return;
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+        const response = await fetch("http:///api/v1/users/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {

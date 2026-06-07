@@ -51,7 +51,7 @@ export default function EmployerProfilePage() {
         }
 
         // Profil bilgilerini al
-        const profileResponse = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+        const profileResponse = await fetch("http:///api/v1/users/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -61,7 +61,7 @@ export default function EmployerProfilePage() {
         }
 
         // Aktif ilanları al
-        const jobsResponse = await fetch("http://127.0.0.1:8000/api/v1/jobs/my-jobs", {
+        const jobsResponse = await fetch("http:///api/v1/jobs/my-jobs", {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -83,7 +83,7 @@ export default function EmployerProfilePage() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+      const response = await fetch("http:///api/v1/users/me", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

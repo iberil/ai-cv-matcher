@@ -76,7 +76,7 @@ export default function MatchesPage({ params }: { params: Promise<{ id: string }
         }
 
         // İş ilanı bilgisini al
-        const jobResponse = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`);
+        const jobResponse = await fetch(`http:///api/v1/jobs/${jobId}`);
         if (jobResponse.ok) {
           const jobData = await jobResponse.json();
           setJobTitle(jobData.title);
@@ -84,7 +84,7 @@ export default function MatchesPage({ params }: { params: Promise<{ id: string }
 
         // Adayları al
         const response = await fetch(
-          `http://127.0.0.1:8000/api/v1/jobs/${jobId}/matches?limit=50`,
+          `http:///api/v1/jobs/${jobId}/matches?limit=50`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }

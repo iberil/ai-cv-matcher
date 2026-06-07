@@ -19,16 +19,16 @@ import { registerUser, loginUser } from "@/lib/api";
 type Role = "aday" | "isveren";
 type FormType = "login" | "register";
 
+const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'https://ai-cv-matcher-5sui.onrender.com/api/v1';
+
 export default function AuthPage() {
   const router = useRouter();
 
-  // Genel State'ler
   const [role, setRole] = useState<Role | null>(null);
   const [formType, setFormType] = useState<FormType>("login");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Form Alanları için State'ler
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,9 +56,8 @@ export default function AuthPage() {
     clearFormFields();
   };
 
-  // --- KAYIT İŞLEMİ (Yeni alanlarla güncellendi) ---
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); // Formun sayfayı yenilemesini engelle
+    e.preventDefault();
     if (!role) return;
     setIsLoading(true);
     setError(null);
@@ -69,7 +68,7 @@ export default function AuthPage() {
         password,
         userRole: role,
 
-        dateOfBirth: dateOfBirth || undefined, // Boşsa undefined gönder
+        dateOfBirth: dateOfBirth || undefined,
         profession: profession || undefined,
       };
 
@@ -83,17 +82,16 @@ export default function AuthPage() {
     }
   };
 
-  // --- GİRİŞ İŞLEMİ ---
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); // Formun sayfayı yenilemesini engelle
+    e.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
       const result = await loginUser({ email, password });
       localStorage.setItem("accessToken", result.access_token);
       
-      // Kullanıcı bilgilerini al ve rolüne göre yönlendir
-      const userResponse = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+      const apiUrl = getApiUrl();
+      const userResponse = await fetch(`${apiUrl}/users/me`, {
         headers: { Authorization: `Bearer ${result.access_token}` }
       });
       
@@ -118,7 +116,6 @@ export default function AuthPage() {
     }
   };
 
-  // --- ROL SEÇİM EKRANI ---
   if (!role) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -150,7 +147,6 @@ export default function AuthPage() {
     );
   }
 
-  // --- FORM EKRANI ---
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 py-12">
       <Card className="w-full max-w-md relative">
@@ -182,7 +178,6 @@ export default function AuthPage() {
           )}
         </CardContent>
 
-        {/* --- GİRİŞ FORMU --- */}
         {formType === "login" && (
           <form onSubmit={handleLogin}>
             <CardContent className="grid gap-4">
@@ -223,7 +218,6 @@ export default function AuthPage() {
           </form>
         )}
 
-        {/* --- KAYIT FORMU (Tam Hali) --- */}
         {formType === "register" && (
           <form onSubmit={handleRegister}>
             <CardContent className="grid gap-3">
@@ -300,16 +294,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
-/*
-
-
-###**Neler Değişti ve Neden Önemli?**
-
-1.  **Tamamlanmış Kayıt Formu:** Senin gönderdiğin kodun yarım kaldığı yerden devam edilerek, `Doğum Tarihi`, `Meslek` ve `Şifre` alanları forma eklendi.
-2.  **State Bağlantıları:** Eklenen her `Input` bileşeni, ilgili state değişkenine (`username`, `dateOfBirth`, `profession`) `value` ve `onChange` ile doğru bir şekilde bağlandı. Bu, kullanıcı yazdıkça veriyi alabilmemizi sağlar.
-3.  **`handleRegister` Güncellemesi:** Bu fonksiyon artık yeni alanlardaki verileri de içeren tam bir `userData` nesnesi oluşturuyor ve bunu `registerUser` API fonksiyonuna gönderiyor. Bu, verinin backend'e doğru şekilde ulaşmasını garanti eder.
-4.  **Form Etiketi ve `onSubmit`:** Daha iyi bir kullanıcı deneyimi ve web standartlarına uygunluk için, `onClick`'i butondan alıp, formun tamamını bir `<form>` etiketi içine aldık ve `onSubmit` etkinliğini kullandık. Bu, kullanıcıların Enter tuşuna basarak da formu gönderebilmelerini sağlar.
-
-Artık `login/page.tsx` dosyan, projenin bu aşaması için **tamamen bitmiş ve fonksiyonel** durumdadır.
-*/

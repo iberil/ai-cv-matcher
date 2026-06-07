@@ -39,7 +39,7 @@ export default function CreateJobPage() {
         return;
       }
 
-      const response = await fetch("http://127.0.0.1:8000/api/v1/jobs/", {
+      const response = await fetch("http:///api/v1/jobs/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
