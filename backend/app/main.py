@@ -8,6 +8,7 @@ from .models.job_posting import JobPosting, CVJobMatch
 from .models.notification import Notification
 from .api.endpoints import auth, users, cv_router, jobs, matching, applications, employer_candidates, notifications, messages, ats_router
 import logging
+import os
 
 # Logging yapılandırması
 logging.basicConfig(level=logging.INFO)
@@ -68,3 +69,26 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "version": "1.0.0"}
+
+@app.post("/admin/seed-database")
+def seed_database_endpoint(admin_key: str = ""):
+    """
+    Veritabanını örnek iş ilanları ile doldur.
+    Admin anahtarı gereklidir (environment variable: ADMIN_SEED_KEY)
+    
+    WARNING: Sadece development/test ortamında kullanılmalıdır!
+    """
+    from seed import seed_database
+    
+    admin_key_required = os.getenv("ADMIN_SEED_KEY", "test-admin-key")
+    
+    if admin_key != admin_key_required:
+        logger.warning(f"Seed endpoint'e yetkisiz erişim: {admin_key}")
+        return {"error": "Yetkisiz erişim"}, 403
+    
+    try:
+        seed_database()
+        return {"message": "Veritabanı tohumlama başarıyla tamamlandı!"}
+    except Exception as e:
+        logger.error(f"Seed hatası: {e}")
+        return {"error": str(e)}, 500
