@@ -1,27 +1,17 @@
 import re
-from transformers import pipeline
 from ..core.matching_constants import (
     SKILLS_KEYWORDS, JOB_TITLE_KEYWORDS,
     EDUCATION_KEYWORDS, NEGATIVE_KEYWORDS
 )
 
-# NER Pipeline (lazy loading)
+# NER Pipeline (disabled due to memory constraints on serverless)
+# Using keyword-based extraction instead for better compatibility
 ner_pipeline = None
 
 def get_ner_pipeline():
-    """NER pipeline'ini lazy loading ile yukler"""
-    global ner_pipeline
-    if ner_pipeline is None:
-        try:
-            ner_pipeline = pipeline(
-                "ner",
-                model="dslim/bert-base-NER",
-                aggregation_strategy="none"
-            )
-        except Exception as e:
-            print(f"NER model yuklenemedi: {e}")
-            ner_pipeline = False
-    return ner_pipeline
+    """NER pipeline - disabled to avoid OOM on serverless (Render free tier)
+    Using keyword-based extraction in extract_skills_with_ner instead"""
+    return None
 
 
 def extract_skills_section(text: str) -> list:
@@ -337,7 +327,7 @@ def extract_educations_with_regex(text: str) -> list:
 
 
 def extract_skills_with_ner(text: str) -> dict:
-    """NER ile yetenekleri, is unvanlarini ve egitim bilgilerini cikarir"""
+    """Keyword-based skill extraction (NER disabled for serverless compatibility)"""
     skills = set()
     job_titles = set()
     education = set()
@@ -359,26 +349,6 @@ def extract_skills_with_ner(text: str) -> dict:
         pattern = r'(?<![\w-])' + re.escape(edu) + r'(?![\w-])'
         if re.search(pattern, text_lower):
             education.add(edu.title())
-
-    ner = get_ner_pipeline()
-    if ner:
-        try:
-            entities = ner(text[:2000])
-            for entity in entities:
-                word = entity['word'].strip()
-                word_lower = word.lower()
-
-                if len(word) < 3 or word_lower in NEGATIVE_KEYWORDS:
-                    continue
-
-                if any(re.search(r'(?<![\w-])' + re.escape(kw) + r'(?![\w-])', word_lower) for kw in SKILLS_KEYWORDS):
-                    skills.add(word)
-                elif any(re.search(r'(?<![\w-])' + re.escape(kw) + r'(?![\w-])', word_lower) for kw in JOB_TITLE_KEYWORDS):
-                    job_titles.add(word)
-                elif any(re.search(r'(?<![\w-])' + re.escape(kw) + r'(?![\w-])', word_lower) for kw in EDUCATION_KEYWORDS):
-                    education.add(word)
-        except Exception:
-            pass
 
     return {
         'skills': list(skills)[:20],

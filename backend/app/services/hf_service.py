@@ -137,7 +137,6 @@ def call_qwen_hf(cv_text: str, max_retries: int = 2) -> dict | None:
         ],
         "max_tokens": 4096,
         "temperature": 0.05,
-        "response_format": {"type": "json_object"},
         "stream": False,
     }
 

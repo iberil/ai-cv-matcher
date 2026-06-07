@@ -22,7 +22,6 @@ numpy>=1.26.4
 scipy>=1.11.4
 nltk==3.8.1
 sentence-transformers>=2.2.2
-transformers==4.40.2
 huggingface-hub==0.22.2
 slowapi==0.1.9
 redis==5.0.1
