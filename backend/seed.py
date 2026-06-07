@@ -4,6 +4,7 @@ import sys
 import random
 from sqlalchemy.orm import Session
 
+# Backend app'ı import etmek için path'i ayarla
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import SessionLocal, engine
@@ -17,18 +18,18 @@ job_market_data = [
         "sector": "Bilgi Teknolojileri ve Yazılım",
         "companies": ["Trendyol", "Getir", "OBSS", "Softtech", "Enoca", "DefineX", "Aselsan", "Havelsan", "Turkcell", "Vodafone", "Kariyer.net", "Sahibinden", "Commencis", "Etiya"],
         "roles": [
-            {"title": "Backend Developer", "skills": "Java, Spring Boot, Python, FastAPI, C#, .NET Core, Microservices, PostgreSQL, Redis"},
-            {"title": "Frontend Developer", "skills": "JavaScript, TypeScript, React, Next.js, Angular, Vue.js, HTML5, CSS3, Tailwind"},
-            {"title": "Full Stack Developer", "skills": "JavaScript, React, Node.js, Python, MongoDB, SQL, Git, REST API"},
-            {"title": "Data Engineer", "skills": "Python, SQL, Apache Spark, Hadoop, Airflow, ETL, BigQuery, AWS, Kafka"},
-            {"title": "Data Scientist", "skills": "Python, Machine Learning, Deep Learning, TensorFlow, PyTorch, Scikit-learn, SQL, Pandas"},
-            {"title": "DevOps Engineer", "skills": "Linux, Docker, Kubernetes, CI/CD, Jenkins, Terraform, AWS, Azure, Bash"},
-            {"title": "iOS Developer", "skills": "Swift, iOS SDK, Xcode, CoreData, RESTful APIs, Git"},
-            {"title": "Android Developer", "skills": "Kotlin, Android Studio, Java, MVVM, Coroutines, REST API"},
-            {"title": "QA Automation Engineer", "skills": "Selenium, Cypress, Appium, Python, Java, Test Automation, Postman"},
-            {"title": "AI/ML Engineer", "skills": "Python, PyTorch, NLP, LLM, Hugging Face, Computer Vision, MLOps"},
-            {"title": "Cyber Security Analyst", "skills": "Network Security, CEH, Penetration Testing, SIEM, Linux, Cryptography"},
-            {"title": "Product Owner", "skills": "Agile, Scrum, Jira, Product Management, UX/UI, Wireframing"}
+            {"title": "Backend Developer", "skills": "Java, Spring Boot, Python, FastAPI, C#, .NET Core, Microservices, PostgreSQL, Redis, MongoDB, Docker"},
+            {"title": "Frontend Developer", "skills": "JavaScript, TypeScript, React, Next.js, Angular, Vue.js, HTML5, CSS3, Tailwind, Redux, Webpack"},
+            {"title": "Full Stack Developer", "skills": "JavaScript, React, Node.js, Python, MongoDB, SQL, Git, REST API, Express.js, GraphQL"},
+            {"title": "Data Engineer", "skills": "Python, SQL, Apache Spark, Hadoop, Airflow, ETL, BigQuery, AWS, Kafka, Snowflake, Scala"},
+            {"title": "Data Scientist", "skills": "Python, Machine Learning, Deep Learning, TensorFlow, PyTorch, Scikit-learn, SQL, Pandas, Keras"},
+            {"title": "DevOps Engineer", "skills": "Linux, Docker, Kubernetes, CI/CD, Jenkins, Terraform, AWS, Azure, Bash, Ansible, GitLab CI"},
+            {"title": "iOS Developer", "skills": "Swift, iOS SDK, Xcode, CoreData, RESTful APIs, Git, SwiftUI, Objective-C"},
+            {"title": "Android Developer", "skills": "Kotlin, Android Studio, Java, MVVM, Coroutines, REST API, Jetpack Compose, Dagger"},
+            {"title": "QA Automation Engineer", "skills": "Selenium, Cypress, Appium, Python, Java, Test Automation, Postman, Cucumber, JUnit"},
+            {"title": "AI/ML Engineer", "skills": "Python, PyTorch, NLP, LLM, Hugging Face, Computer Vision, MLOps, OpenAI, LangChain"},
+            {"title": "Cyber Security Analyst", "skills": "Network Security, CEH, Penetration Testing, SIEM, Linux, Cryptography, Wireshark, OWASP"},
+            {"title": "Product Owner", "skills": "Agile, Scrum, Jira, Product Management, UX/UI, Wireframing, Confluence, A/B Testing"}
         ]
     },
     {
@@ -93,6 +94,28 @@ def generate_description(sector, title, company):
     ]
     return random.choice(desc_templates)
 
+def get_dynamic_requirements(exp_level):
+    """Deneyim seviyesine göre dinamik gereksinim metni oluşturur."""
+    req_templates = {
+        "entry": [
+            "Üniversitelerin ilgili bölümlerinden yeni mezun veya en fazla 1-2 yıl deneyimli,",
+            "Öğrenmeye ve kendini geliştirmeye açık, takım çalışmasına yatkın,",
+            "Temel teknoloji konseptlerine hakim ve giriş seviyesinde tecrübesi olan,"
+        ],
+        "mid": [
+            "Alanında en az 3-5 yıl arası profesyonel iş tecrübesine sahip,",
+            "İlgili teknolojilerde daha önce aktif projelerde rol almış,",
+            "Orta seviye mimari kararlara katkı sağlayabilecek düzeyde tecrübeli,"
+        ],
+        "senior": [
+            "Alanında 5+ yıl üzeri kanıtlanmış profesyonel tecrübeye sahip,",
+            "Takım liderliği yapabilecek ve mimari kararları alabilecek uzmanlıkta,",
+            "Büyük ölçekli sistemlerin tasarımı ve yönetiminde kıdemli seviyede tecrübeli,"
+        ]
+    }
+    base_req = random.choice(req_templates[exp_level])
+    return f"{base_req} belirtilen teknoloji ve yetkinliklerde uzman adaylar arıyoruz."
+
 def seed_database():
     db: Session = SessionLocal()
     try:
@@ -124,29 +147,34 @@ def seed_database():
             existing_jobs.delete(synchronize_session=False)
             db.commit()
 
-        # 1200 YENİ VE GERÇEKÇİ İLAN ÜRET
+        # 1200 YENİ, GERÇEKÇİ VE DİNAMİK İLAN ÜRET
         job_postings_to_add = []
         for _ in range(1200):
-            # 1. Sektörü seç (Bilişim sektörünün gelme ihtimalini artırmak için ağırlıklı seçim yapılabilir, ama şimdilik rastgele)
+            # 1. Sektör, şirket ve rol seçimi
             market = random.choice(job_market_data)
             sector_name = market["sector"]
-            
-            # 2. Sektörün içinden uygun bir şirket ve rol seç
             company = random.choice(market["companies"])
             role = random.choice(market["roles"])
             
             pozisyon = role["title"]
-            beceriler = role["skills"]
             
-            # 3. Çalışma türü ve konum mantığı (IT işleri daha çok remote/hybrid olur)
+            # --- DİNAMİK BECERİ SEÇİMİ (Aynı skor sorununu çözen kısım) ---
+            tum_beceriler = [b.strip() for b in role["skills"].split(',')]
+            # Tüm becerileri vermek yerine, her ilana rastgele 4 ila 7 arasında beceri ata
+            secilecek_sayi = random.randint(4, min(len(tum_beceriler), 7))
+            secilen_beceriler = random.sample(tum_beceriler, k=secilecek_sayi)
+            beceriler_metni = ", ".join(secilen_beceriler)
+            # --------------------------------------------------------------
+            
+            # Çalışma türü ve konum
             work_type = random.choice(calisma_turleri)
-            if work_type == "remote" or sector_name == "Bilgi Teknolojileri ve Yazılım" and random.random() > 0.5:
+            if work_type == "remote" or (sector_name == "Bilgi Teknolojileri ve Yazılım" and random.random() > 0.5):
                 konum = "Uzaktan (Tüm Türkiye)"
                 work_type = "remote" if work_type == "office" else work_type
             else:
                 konum = random.choice(konumlar)
 
-            # 4. Maaş mantığı (Senior daha çok alır, IT daha çok alır vb.)
+            # Deneyim seviyesi ve maaş
             exp_level = random.choice(deneyim_seviyeleri)
             base_salary = 40000 if exp_level == "entry" else (70000 if exp_level == "mid" else 110000)
             if sector_name == "Bilgi Teknolojileri ve Yazılım":
@@ -155,8 +183,10 @@ def seed_database():
             min_maas = base_salary + random.randrange(-5000, 15000, 2500)
             max_maas = min_maas + random.randrange(15000, 50000, 5000)
             
+            # --- DİNAMİK METİNLER (Aynı skor sorununu çözen kısım) ---
             aciklama = generate_description(sector_name, pozisyon, company)
-            gereksinim = f"İlgili bölümlerden mezun, {exp_level} seviyesinde tecrübeye sahip, belirtilen teknoloji ve yetkinliklerde uzman adaylar."
+            gereksinim = get_dynamic_requirements(exp_level)
+            # ---------------------------------------------------------
 
             new_job = JobPosting(
                 title=pozisyon,
@@ -164,7 +194,7 @@ def seed_database():
                 location=konum,
                 description=aciklama,
                 requirements=gereksinim,
-                skills_required=beceriler,
+                skills_required=beceriler_metni, # Dinamik seçilen beceriler
                 work_type=work_type,
                 experience_level=exp_level,
                 salary_min=float(min_maas),
@@ -175,7 +205,7 @@ def seed_database():
             )
             job_postings_to_add.append(new_job)
 
-        print(f"Toplam {len(job_postings_to_add)} yeni nesil, mantıklı ilan hazırlanıyor...")
+        print(f"Toplam {len(job_postings_to_add)} yeni nesil, varyanslı ilan hazırlanıyor...")
         db.bulk_save_objects(job_postings_to_add)
         db.commit()
         print("[SUCCESS] İlanlar başarıyla Neon.tech veritabanına yüklendi!")
