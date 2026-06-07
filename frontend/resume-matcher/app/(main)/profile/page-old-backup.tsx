@@ -45,7 +45,7 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const resumeResponse = await fetch('http:///api/v1/cv/my-resumes', {
+      const resumeResponse = await fetch('https://ai-cv-matcher-5sui.onrender.com/api/v1/cv/my-resumes', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -84,7 +84,7 @@ export default function ProfilePage() {
         await refreshSavedResumes();
         
         // Favorileri yükle
-        const favResponse = await fetch('http:///api/v1/my-favorites', {
+        const favResponse = await fetch('https://ai-cv-matcher-5sui.onrender.com/api/v1/my-favorites', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (favResponse.ok) {
@@ -161,7 +161,7 @@ export default function ProfilePage() {
       const formData = new FormData();
       formData.append('file', blob, cv.name);
 
-      const apiResponse = await fetch('http:///api/v1/cv/upload-and-analyze', {
+      const apiResponse = await fetch('https://ai-cv-matcher-5sui.onrender.com/api/v1/cv/upload-and-analyze', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -201,7 +201,7 @@ export default function ProfilePage() {
         full_name: profile.full_name
       };
 
-      const response = await fetch('http:///api/v1/cv/confirm-and-save', {
+      const response = await fetch('https://ai-cv-matcher-5sui.onrender.com/api/v1/cv/confirm-and-save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -267,7 +267,7 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http:///api/v1/cv/resume/${resumeId}`, {
+      const response = await fetch(`https://ai-cv-matcher-5sui.onrender.com/api/v1/cv/resume/${resumeId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

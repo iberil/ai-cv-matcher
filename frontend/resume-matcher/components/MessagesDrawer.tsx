@@ -45,7 +45,7 @@ export default function MessagesDrawer({
       const token = localStorage.getItem("accessToken");
       if (!token) return;
       try {
-        const response = await fetch("http:///api/v1/users/me", {
+        const response = await fetch("https://ai-cv-matcher-5sui.onrender.com/api/v1/users/me", {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {

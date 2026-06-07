@@ -76,7 +76,7 @@ export default function MatchesPage({ params }: { params: Promise<{ id: string }
         }
 
         // İş ilanı bilgisini al
-        const jobResponse = await fetch(`http:///api/v1/jobs/${jobId}`);
+        const jobResponse = await fetch(`https://ai-cv-matcher-5sui.onrender.com/api/v1/jobs/${jobId}`);
         if (jobResponse.ok) {
           const jobData = await jobResponse.json();
           setJobTitle(jobData.title);
@@ -84,7 +84,7 @@ export default function MatchesPage({ params }: { params: Promise<{ id: string }
 
         // Adayları al
         const response = await fetch(
-          `http:///api/v1/jobs/${jobId}/matches?limit=50`,
+          `https://ai-cv-matcher-5sui.onrender.com/api/v1/jobs/${jobId}/matches?limit=50`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
