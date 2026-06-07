@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.core.database import SessionLocal, engine
 from app.models import User
-from app.models.job_posting import JobPosting
+from app.models.job_posting import JobPosting, CVJobMatch  # CVJobMatch eklendi
 from app.core.security import get_password_hash
 
 # Sektör ve Pozisyon Havuzu
@@ -56,9 +56,41 @@ sektor_verileri = {
     }
 }
 
-sirketler = ["Anadolu", "Yıldız", "Global", "Mavi", "Yeşil", "Zirve", "Merkez", "Modern", "Özgün", "Birlik"]
-ekler = ["A.Ş.", "Grup", "Holding", "Limited", "Hizmetleri", "Ticaret"]
-konumlar = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Gaziantep", "Kayseri"]
+# Türkiye'nin gerçek büyük şirketleri ve holding adları
+sirketler = [
+    # Teknoloji ve Yazılım
+    "Turkcell", "Vodafone", "Telia", "Teknosa", "Bilgisayar Kavramları", "Aselsan",
+    # Enerji
+    "ENEL", "Enerjisa", "Eren Holding", "Zorlu Holding", "Akfen",
+    # Gıda
+    "Nestlé", "Unilever", "Danone", "Ülker", "Pepsico",
+    # Otomotiv
+    "Tofaş", "BMC", "Otokar", "Bosch", "Daimler",
+    # Tekstil
+    "Boyner", "Madiva", "Özdilek", "Kipaş", "Süper",
+    # İnşaat ve Emlak
+    "Emlak Konut", "Polat", "Dap Yapı", "Ronesans", "Mace",
+    # Kimya ve Plastik
+    "Petkim", "Tarhan", "Sabancı", "Akçansa", "Deuchem",
+    # Turizm
+    "Turkish Airlines", "Pegasus", "Hyatt", "Hilton", "Meliá",
+    # Perakende
+    "Carrefoursa", "Migros", "Bim", "A101", "Sokos",
+    # Finans
+    "Garanti BBVA", "Denizbank", "Akbank", "İş Bankası", "Halkbank",
+    # İlaç
+    "Humapharma", "Deva", "Cipla", "Nobel", "Novartis",
+    # Lojistik
+    "Kargo Handling", "UPS", "DHL", "TNT", "Aras",
+    # Danışmanlık
+    "Accenture", "Deloitte", "PwC", "KPMG", "EY",
+    # Medya
+    "Hürriyet", "Doğan Medya", "Turkuvaz", "Cumhuriyet", "Sözcü",
+    # Sağlık
+    "Acibadem", "American Hospital", "Memorial", "Ümraniye Hospital", "Liv",
+]
+
+konumlar = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Gaziantep", "Kayseri", "Konya", "Mersin"]
 calisma_turleri = ["remote", "hybrid", "office"]
 deneyim_seviyeleri = ["entry", "mid", "senior"]
 
@@ -84,21 +116,31 @@ def seed_database():
         creator_id = system_employer.id
         print(f"Ilanlar su kullaniciya baglanacak: ID {creator_id} ({system_employer.full_name})")
 
-        # 2. Mevcut ilanları kontrol et (çifte tohumlama önleme)
-        existing_count = db.query(JobPosting).filter(JobPosting.created_by == creator_id).count()
+        # 2. MEVCUT İLANLARI TEMİZLE (Yeni güncelleme)
+        existing_jobs = db.query(JobPosting).filter(JobPosting.created_by == creator_id)
+        existing_count = existing_jobs.count()
+        
         if existing_count > 0:
-            print(f"UYARI: Zaten {existing_count} adet ilan mevcut. Toplu ekleme yapmiyorum.")
-            print("Devam etmek istiyorsaniz var olan ilanlar silin veya baska bir creator_id kullanin.")
-            return
+            print(f"Eski uretilmis {existing_count} adet ilan bulundu. Temizleniyor...")
+            
+            # Veritabanı hatası almamak için önce bu ilanlara ait "eşleşme sonuçlarını" silmeliyiz
+            job_ids = [job.id for job in existing_jobs.all()]
+            if job_ids:
+                db.query(CVJobMatch).filter(CVJobMatch.job_posting_id.in_(job_ids)).delete(synchronize_session=False)
+            
+            # Sonra eski ilanların kendisini sil
+            existing_jobs.delete(synchronize_session=False)
+            db.commit()
+            print("Eski ilanlar basariyla silindi. Yeni veriler uretiliyor...")
 
-        # 3. 1000 adet ilan üret
+        # 3. 1200 adet ilan üret
         job_postings_to_add = []
-        for i in range(1000):
+        for i in range(1200):
             sektor_adi = random.choice(list(sektor_verileri.keys()))
             detay = sektor_verileri[sektor_adi]
             
             pozisyon = random.choice(detay["pozisyonlar"])
-            sirket = f"{random.choice(sirketler)} {random.choice(sirketler)} {random.choice(ekler)}"
+            sirket = random.choice(sirketler)
             
             konum = random.choice(konumlar)
             work_type = random.choice(calisma_turleri)
@@ -108,8 +150,8 @@ def seed_database():
             min_maas = random.randrange(35000, 85000, 2500)
             max_maas = min_maas + random.randrange(10000, 40000, 5000)
             
-            aciklama = f"{sektor_adi} alaninda buyuyen ekibimize {pozisyon} olarak katkis saglaycak, sorumluluk sahibi takim arkadaslari ariyoruz."
-            gereksinim = f"Ilgili universite bolumlerinden mezun, sektorde tecrubesi olan ve dinamik calisma ortamina uyum saglyabilecek adaylar."
+            aciklama = f"{sektor_adi} alaninda buyuyen ekibimize {pozisyon} olarak katki saglayacak, sorumluluk sahibi takim arkadaslari ariyoruz."
+            gereksinim = f"Ilgili universite bolumlerinden mezun, sektorde tecrubesi olan ve dinamik calisma ortamina uyum saglayabilecek adaylar."
             exp_level = random.choice(deneyim_seviyeleri)
 
             new_job = JobPosting(
@@ -130,10 +172,10 @@ def seed_database():
             job_postings_to_add.append(new_job)
 
         # 4. Toplu ekleme
-        print(f"{len(job_postings_to_add)} adet ilan hazirlaniyor...")
+        print(f"{len(job_postings_to_add)} adet yeni ilan hazirlaniyor...")
         db.bulk_save_objects(job_postings_to_add)
         db.commit()
-        print("[SUCCESS] 1000 adet karisik is ilani basariyila veritabanina yuklendi!")
+        print("[SUCCESS] 1200 adet karisik is ilani basariyla veritabanina yuklendi!")
         
     except Exception as e:
         db.rollback()
