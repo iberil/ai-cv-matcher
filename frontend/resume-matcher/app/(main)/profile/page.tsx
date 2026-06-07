@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { User, FileText, Briefcase, Heart, Upload, X, Loader2, Target } from "lucide-react";
 import { getCurrentUser } from "@/lib/api";
 
+const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
@@ -37,8 +39,10 @@ export default function ProfilePage() {
         const userData = await getCurrentUser(token);
         setProfile(userData);
 
+        const apiUrl = getApiUrl();
+
         // Başvuruları yükle
-        const appsResponse = await fetch('http://127.0.0.1:8000/api/v1/my-applications', {
+        const appsResponse = await fetch(`${apiUrl}/my-applications`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (appsResponse.ok) {
@@ -47,7 +51,7 @@ export default function ProfilePage() {
         }
 
         // Favorileri yükle
-        const favResponse = await fetch('http://127.0.0.1:8000/api/v1/my-favorites', {
+        const favResponse = await fetch(`${apiUrl}/my-favorites`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (favResponse.ok) {
@@ -56,7 +60,7 @@ export default function ProfilePage() {
         }
 
         // CV'leri yükle
-        const resumeResponse = await fetch('http://127.0.0.1:8000/api/v1/cv/my-resumes', {
+        const resumeResponse = await fetch(`${apiUrl}/cv/my-resumes`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (resumeResponse.ok) {
@@ -96,7 +100,8 @@ export default function ProfilePage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/cv/upload-and-analyze', {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/cv/upload-and-analyze`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -145,7 +150,8 @@ export default function ProfilePage() {
         file_path: analyzedData.file_path || null
       };
 
-      const response = await fetch('http://127.0.0.1:8000/api/v1/cv/confirm-and-save', {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/cv/confirm-and-save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +169,7 @@ export default function ProfilePage() {
       setPreviewFile(null);
       
       // CV'leri yeniden yükle
-      const resumeResponse = await fetch('http://127.0.0.1:8000/api/v1/cv/my-resumes', {
+      const resumeResponse = await fetch(`${apiUrl}/cv/my-resumes`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resumeResponse.ok) {
@@ -242,7 +248,8 @@ export default function ProfilePage() {
         }))
       };
 
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/cv/resume/${editingResumeId}`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/cv/resume/${editingResumeId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -259,7 +266,7 @@ export default function ProfilePage() {
       setEditingResumeId(null);
       
       // CV'leri yeniden yükle
-      const resumeResponse = await fetch('http://127.0.0.1:8000/api/v1/cv/my-resumes', {
+      const resumeResponse = await fetch(`${apiUrl}/cv/my-resumes`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resumeResponse.ok) {
@@ -288,7 +295,8 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/cv/resume/${resumeId}/pdf`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/cv/resume/${resumeId}/pdf`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -314,7 +322,8 @@ export default function ProfilePage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/cv/resume/${resumeId}`, {
+      const apiUrl = getApiUrl();
+      const response = await fetch(`${apiUrl}/cv/resume/${resumeId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

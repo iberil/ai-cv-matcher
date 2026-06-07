@@ -65,13 +65,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     
     const fetchJobDetail = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+        const response = await fetch(`${apiUrl}/jobs/${jobId}`);
         const jobData = await response.json();
         setJob(jobData);
 
         const token = localStorage.getItem("accessToken");
         if (token) {
-          const userResponse = await fetch("http://127.0.0.1:8000/api/v1/users/me", {
+          const userResponse = await fetch(`${apiUrl}/users/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (userResponse.ok) {
@@ -82,7 +83,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
             
             // Başvuru ve favori durumunu kontrol et
             if (userData.user_role === "aday") {
-              const statusResponse = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}/check-status`, {
+              const statusResponse = await fetch(`${apiUrl}/jobs/${jobId}/check-status`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (statusResponse.ok) {
@@ -108,7 +109,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
 
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiUrl}/jobs/${jobId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -126,7 +128,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     setIsApplying(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}/apply`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiUrl}/jobs/${jobId}/apply`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -148,8 +151,9 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
   const handleToggleFavorite = async () => {
     try {
       const token = localStorage.getItem("accessToken");
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
       const method = isFavorite ? "DELETE" : "POST";
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/jobs/${jobId}/favorite`, {
+      const response = await fetch(`${apiUrl}/jobs/${jobId}/favorite`, {
         method,
         headers: { Authorization: `Bearer ${token}` }
       });

@@ -30,7 +30,7 @@ import {
   Layout,
   Zap
 } from "lucide-react";
-import { analyzeATS, getCareerAdvice, ATSScoreResponse } from "@/lib/api";
+import { analyzeATS, getCareerAdvice, ATSScoreResponse, sendCareerChatMessage } from "@/lib/api";
 
 function ATSReportContent() {
   const searchParams = useSearchParams();
@@ -84,8 +84,8 @@ function ATSReportContent() {
     
     try {
       const token = localStorage.getItem("accessToken");
-      const { sendCareerChatMessage } = await import("@/lib/api");
-      const data = await sendCareerChatMessage(token!, parseInt(cvId), newMessages);
+      if (!token) throw new Error("Token bulunamadı");
+      const data = await sendCareerChatMessage(token, parseInt(cvId), newMessages);
       
       setChatMessages((prev) => [...prev, { role: "assistant", content: data.advice }]);
     } catch (err) {
