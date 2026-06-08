@@ -29,6 +29,7 @@ pip-delete-this-directory.txt
 *.sqlite
 *.sqlite3
 cv_matcher.db
+backend/seed.py
 
 # ===== PYTHON CACHE & TESTING =====
 .pytest_cache/

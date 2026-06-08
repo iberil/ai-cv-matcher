@@ -41,6 +41,7 @@ frontend/resume-matcher/.env.production
 *.sqlite3
 cv_matcher.db
 backend/cv_matcher.db
+backend/seed.py
 
 # ===== PYTHON CACHE =====
 __pycache__/
